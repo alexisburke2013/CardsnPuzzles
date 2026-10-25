@@ -10,18 +10,20 @@ Playfield is a browser-first PWA hub for short card and puzzle games. It is a st
 
 - `index.html`: shared hub and game-shell markup. The app script must remain `type="module"`.
 - `app.js`: catalog, profile progression, local persistence, rewards, game lifecycle, PWA install, backup/restore, and cross-game input dispatch.
+- `wallet.js`: the shared earn/spend/legacy-migration rules for the player credit balance.
+- `games/hints.js`: shared hint price and disabled-state button markup.
 - `games/index.js`: registry for playable modules and metadata for coming-soon games.
 - `games/solitaire.js`: deal, move validation, click/tap, pointer drag/drop, and Solitaire rendering.
 - `games/sudoku.js`: puzzle seed, editable-cell rendering, number entry, conflict feedback, and keyboard navigation.
 - `games/mahjong.js`: layered tile layout, blocked/open rules, matching, and hints.
-- `games/wordsearch.js`: word placement generation and endpoint selection.
+- `games/wordsearch.js`: difficulty configuration, word placement generation, state validation, and endpoint selection.
 - `games/crossword.js`: clue data, editable rows, and completion checks.
 - `styles.css`: shared design system, responsive layouts, game pieces, and motion.
 - `sw.js`: versioned offline shell cache. Add every new module to `APP_FILES`.
 
 ## 02. Game Module Contract
 
-Each game exports a default module with `metadata`, `createState()`, and `render(state)`. Rendering returns `{ board, aside }` HTML strings. Optional event handlers are `handleClick(target, state, helpers)`, `handleInput(target, state)`, `handleKeyDown(event, state)`, and pointer handlers. Return `true` or `{ changed: true, focus }` when the app should rerender. `helpers.toast(message)` gives feedback; `helpers.complete(gameId)` awards progression.
+Each game exports a default module with `metadata`, `createState()`, and `render(state, options)`. Rendering returns `{ board, aside }` HTML strings. Optional event handlers are `handleClick(target, state, helpers)`, `handleInput(target, state)`, `handleKeyDown(event, state)`, and pointer handlers. Return `true` or `{ changed: true, focus }` when the app should rerender. `helpers.toast(message)` gives feedback; `helpers.complete(gameId)` awards progression; `helpers.spendCredits(amount)` is the only game-facing wallet spend API.
 
 Game state must be JSON-serializable. Do not save DOM nodes, PointerEvents, timers, or other transient browser objects. The Solitaire drag object is transient and must be cleared on pointer-up/cancel before saving.
 
@@ -33,7 +35,7 @@ Game state must be JSON-serializable. Do not save DOM nodes, PointerEvents, time
 4. Add its module URL to `sw.js` so installed/offline clients cache it.
 5. Add focused state/rule checks using Node's built-in assertions or a future test runner.
 
-For content tweaks, edit the constants at the top of the corresponding module: Sudoku `PUZZLE` and `SOLUTION`, Word Search `WORDS`, Crossword `CLUES` and `ANSWERS`, Mahjong `TILE_PAIRS`, Solitaire `SUITS` and its move validators. Use `styles.css` for visuals; do not put game rules in CSS.
+For content tweaks, edit the constants at the top of the corresponding module: Sudoku `PUZZLE` and `SOLUTION`, Word Search `DIFFICULTIES`/`WORDS`/`DIRECTIONS`, Crossword `CLUES` and `ANSWERS`, Mahjong `TILE_PAIRS`, Solitaire `SUITS` and its move validators. Keep generated Word Search placements as complete cell-index paths; `isValidState()` rejects legacy coordinate-pair saves. Adjust the shared hint price in `games/hints.js`. Use `styles.css` for visuals; do not put game rules in CSS.
 
 ## 04. Input and Accessibility Rules
 
@@ -45,9 +47,9 @@ For content tweaks, edit the constants at the top of the corresponding module: S
 
 ## 05. Save and Progression Rules
 
-Local saves live in `localStorage` under `playfield-save-v2`; the legacy v1 profile is still read. When game state shapes change, validate saved boards in `restoreGameState()` in `app.js`; preserve profile XP, points, titles, and cosmetics even if an old in-progress board must restart. Keep backups importable and versioned.
+Local saves live in `localStorage` under `playfield-save-v2`; the legacy v1 profile is still read. `wallet.js` migrates legacy `points` to `credits`; keep this migration and backup imports intact. When game state shapes change, validate saved boards in `restoreGameState()` in `app.js`; preserve profile XP, credits, titles, and cosmetics even if an old in-progress board must restart. Keep backups importable and versioned.
 
-The shared reward is currently 25 points and 50 XP per completed game. `app.js` owns reward-once logic; game modules signal completion but should not award points themselves.
+New profiles start with 15 credits. The shared reward is currently 25 credits and 50 XP per completed game; each game hint costs 5 credits. `app.js` owns wallet spending and reward-once logic; game modules signal completion and request hint spending but must not mutate the wallet directly.
 
 ## 06. Open-Source Reference Comparison
 
@@ -66,6 +68,7 @@ Quick checks:
 ```sh
 node --check app.js
 node --check sw.js
+node --check wallet.js
 for file in games/*.js; do node --check "$file"; done
 node --test tests/games.test.js
 ```
@@ -73,6 +76,7 @@ node --test tests/games.test.js
 ## 08. Known Limits and Next Steps
 
 - Current Sudoku uses one fixed puzzle; add a tested generator and difficulty levels before presenting daily/randomized play.
+- Word Search has Easy/Medium/Hard grid sizes and word sets. Keep the endpoint completion test when editing word data or generation rules.
 - Solitaire supports draw-one Klondike-style rules and single/sequence card moves, but is not yet a complete tournament-ready implementation.
 - Mahjong is a small layered matching tutorial, not a full 144-tile layout catalogue.
 - Verify touch layout and pointer drag on a real phone; automated visual browser testing is not currently configured.

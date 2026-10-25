@@ -5,6 +5,7 @@
  * - render() controls card markup; CSS in styles.css controls card size, feel, and animation.
  */
 const SUITS = ['♠', '♥', '♦', '♣'];
+import { HINT_COST, hintButton } from './hints.js';
 
 export const metadata = {
   id: 'solitaire',
@@ -31,7 +32,7 @@ function makeDeck() {
 export function createState() {
   const deck = makeDeck();
   const tableau = Array.from({ length: 7 }, (_, index) => deck.splice(0, index + 1).map((card, cardIndex) => ({ ...card, faceDown: cardIndex !== index })));
-  return { tableau, stock: deck, waste: [], foundations: [[], [], [], []], selected: null, drag: null, suppressClick: false, finished: false };
+  return { tableau, stock: deck, waste: [], foundations: [[], [], [], []], selected: null, drag: null, hint: null, suppressClick: false, finished: false };
 }
 
 function isRed(card) { return card.suit === '♥' || card.suit === '♦'; }
@@ -74,6 +75,34 @@ function finishIfWon(state, complete) {
   }
 }
 
+function findHint(state) {
+  const sources = [];
+  if (state.waste.length) sources.push({ from: 'waste', cards: [state.waste.at(-1)] });
+  for (let pile = 0; pile < state.tableau.length; pile++) {
+    for (let index = 0; index < state.tableau[pile].length; index++) {
+      const cards = state.tableau[pile].slice(index);
+      if (isValidRun(cards)) sources.push({ from: 'tableau', pile, index, cards });
+    }
+  }
+  for (const source of sources) {
+    if (source.cards.length === 1) {
+      const card = source.cards[0];
+      const foundation = state.foundations.findIndex(pile => pile.length
+        ? pile.at(-1).suit === card.suit && pile.at(-1).rank + 1 === card.rank
+        : card.rank === 1);
+      if (foundation >= 0) return { ...source, cards: undefined, destination: { type: 'foundation', index: foundation } };
+    }
+    for (let pile = 0; pile < state.tableau.length; pile++) {
+      if (source.from === 'tableau' && source.pile === pile) continue;
+      if (canMoveToTableau(source.cards, state.tableau[pile].at(-1))) {
+        return { ...source, cards: undefined, destination: { type: 'tableau', index: pile } };
+      }
+    }
+  }
+  if (state.stock.length || state.waste.length) return { from: 'stock' };
+  return null;
+}
+
 function moveToTableau(state, pileIndex, helpers) {
   if (!state.selected) return false;
   if (state.selected.from === 'tableau' && state.selected.pile === pileIndex) return false;
@@ -111,24 +140,34 @@ function moveToFoundation(state, foundationIndex, helpers) {
   return true;
 }
 
-export function render(state, { cardBack = 'meadow' } = {}) {
+export function render(state, { cardBack = 'meadow', credits = 0 } = {}) {
   const stock = state.stock.length
-    ? `<button class="stock-button" data-stock aria-label="Draw a card"><span class="deck-back pack-${cardBack}" aria-hidden="true">✳</span></button>`
-    : '<button class="stock-button" data-recycle aria-label="Recycle waste">↶</button>';
-  const top = `<div class="solitaire-top"><div>${stock}</div><div><button class="waste-card" data-waste-card aria-label="Select waste pile">${state.waste.length ? cardLabel(state.waste.at(-1)) : '·'}</button></div><div></div>${state.foundations.map((pile, index) => `<button class="pile-mark" data-foundation="${index}" aria-label="Foundation ${index + 1}">${pile.length ? cardLabel(pile.at(-1)) : '♧'}</button>`).join('')}</div>`;
-  const columns = state.tableau.map((pile, pileIndex) => `<div class="card-pile" data-pile="${pileIndex}">${pile.length ? pile.map((card, cardIndex) => {
+    ? `<button class="stock-button ${state.hint?.from === 'stock' ? 'is-hint-source' : ''}" data-stock aria-label="Draw a card"><span class="deck-back pack-${cardBack}" aria-hidden="true">✳</span></button>`
+    : `<button class="stock-button ${state.hint?.from === 'stock' ? 'is-hint-source' : ''}" data-recycle aria-label="Recycle waste">↶</button>`;
+  const top = `<div class="solitaire-top"><div>${stock}</div><div><button class="waste-card ${state.hint?.from === 'waste' ? 'is-hint-source' : ''}" data-waste-card aria-label="Select waste pile">${state.waste.length ? cardLabel(state.waste.at(-1)) : '·'}</button></div><div></div>${state.foundations.map((pile, index) => `<button class="pile-mark ${state.hint?.destination?.type === 'foundation' && state.hint.destination.index === index ? 'is-hint-target' : ''}" data-foundation="${index}" aria-label="Foundation ${index + 1}">${pile.length ? cardLabel(pile.at(-1)) : '♧'}</button>`).join('')}</div>`;
+  const columns = state.tableau.map((pile, pileIndex) => `<div class="card-pile ${state.hint?.destination?.type === 'tableau' && state.hint.destination.index === pileIndex ? 'is-hint-target' : ''}" data-pile="${pileIndex}">${pile.length ? pile.map((card, cardIndex) => {
     const selected = state.selected?.from === 'tableau' && state.selected.pile === pileIndex && cardIndex >= state.selected.index;
-    return `<button class="playing-card ${isRed(card) ? 'red' : ''} ${card.faceDown ? `is-face-down card-back pack-${cardBack}` : 'is-selectable'} ${selected ? 'is-selected' : ''}" style="z-index:${cardIndex}" data-card-pile="${pileIndex}" data-card-index="${cardIndex}" aria-label="${card.faceDown ? 'Face-down card' : cardLabel(card)}" ${card.faceDown ? 'disabled' : ''}>${card.faceDown ? '✳' : cardLabel(card)}</button>`;
+    const hintedSource = state.hint?.from === 'tableau' && state.hint.pile === pileIndex && cardIndex === state.hint.index;
+    return `<button class="playing-card ${isRed(card) ? 'red' : ''} ${card.faceDown ? `is-face-down card-back pack-${cardBack}` : 'is-selectable'} ${selected ? 'is-selected' : ''} ${hintedSource ? 'is-hint-source' : ''}" style="z-index:${cardIndex}" data-card-pile="${pileIndex}" data-card-index="${cardIndex}" aria-label="${card.faceDown ? 'Face-down card' : cardLabel(card)}" ${card.faceDown ? 'disabled' : ''}>${card.faceDown ? '✳' : cardLabel(card)}</button>`;
   }).join('') : '<span class="pile-mark">♧</span>'}</div>`).join('');
   const selectedCard = selectedCards(state)[0];
   const selectedLabel = selectedCard ? `Selected ${cardLabel(selectedCard)}. ` : '';
   return {
     board: `<div class="solitaire-board">${top}${columns}</div>`,
-    aside: `<p class="aside-label">KLONDIKE · DRAW ONE</p><h2 class="aside-title">Make room for a King</h2><p class="aside-copy">${selectedLabel}Drag a face-up card or tap it, then tap a destination. Move a stack by starting on any face-up card. Build down in alternating colors; foundations go up by suit.</p><button class="game-action" data-auto-foundation>Send selected card home</button><div class="reward-line"><span>Clear all four suits</span><strong>+25 points<br>+50 XP</strong></div>`
+    aside: `<p class="aside-label">KLONDIKE · DRAW ONE</p><h2 class="aside-title">Make room for a King</h2><p class="aside-copy">${selectedLabel}Drag a face-up card or tap it, then tap a destination. Move a stack by starting on any face-up card. Build down in alternating colors; foundations go up by suit.</p>${hintButton('Find a legal move', { credits, finished: state.finished })}<button class="game-action" data-auto-foundation>Send selected card home</button><div class="reward-line"><span>Clear all four suits</span><strong>+25 credits<br>+50 XP</strong></div>`
   };
 }
 
 export function handleClick(target, state, helpers) {
+  if (target.closest('[data-game-hint]')) {
+    const hint = findHint(state);
+    if (!hint) { helpers.toast('No legal moves remain. Try drawing from stock.'); return true; }
+    if (!helpers.spendCredits(HINT_COST)) return true;
+    state.hint = hint;
+    state.selected = null;
+    return true;
+  }
+  state.hint = null;
   if (state.suppressClick) {
     state.suppressClick = false;
     return true;

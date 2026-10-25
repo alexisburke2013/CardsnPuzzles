@@ -1,17 +1,17 @@
 # Playfield | Cards & Puzzles
 
-Playfield is a browser-first home for short card and puzzle games. The shared hub keeps a player profile, points, XP, titles, cosmetics, and saved game boards together across the game shelf. Coding agents should start with [AGENTS.md](AGENTS.md), the chaptered project memory and customization guide.
+Playfield is a browser-first home for short card and puzzle games. The shared hub keeps a player profile, wallet credits, XP, titles, cosmetics, and saved game boards together across the game shelf. Coding agents should start with [AGENTS.md](AGENTS.md), the chaptered project memory and customization guide.
 
 ## Playable preview
 
 - Solitaire: draw-one Klondike-style moves, facedown tableau cards, automatic flips, movable face-up runs, and pointer drag/drop with tap fallback.
 - Sudoku: editable numeric cells, conflict feedback, keyboard navigation, and a number pad for touch.
 - Mahjong pairs: a small layered layout with covered/side-block rules, open-pair hints, and matching feedback.
-- Word search: generated horizontal, vertical, and diagonal placements.
+- Word search: generated horizontal, vertical, diagonal, and reverse placements, with Easy/Medium/Hard boards.
 - Mini crossword: five short across clues.
 - Tic Tac Toe, Battleships, and Minesweeper appear as coming soon.
 
-Completing a game awards 25 points and 50 XP. Levels unlock player titles and four equippable Solitaire card backs. Progress and in-progress boards are stored in this browser on this device. Use **Back up progress** to download a JSON backup, or **Restore backup** to import one. Clearing browser storage can erase the local save, so keep a backup if the data matters.
+New profiles start with 15 credits. Completing a game awards 25 credits and 50 XP; a hint in any starter game costs 5 credits from the same wallet. Levels unlock player titles and four equippable Solitaire card backs. Progress and in-progress boards are stored in this browser on this device. Use **Back up progress** to download a JSON backup, or **Restore backup** to import one. Clearing browser storage can erase the local save, so keep a backup if the data matters.
 
 ## Customize and test
 

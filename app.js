@@ -1,4 +1,5 @@
 import { gameModules, comingSoonGames } from './games/index.js';
+import { awardCredits, normalizeWalletProfile, spendCredits as debitCredits } from './wallet.js';
 
 const STORAGE_KEY = 'playfield-save-v2';
 const LEGACY_STORAGE_KEY = 'playfield-save-v1';
@@ -17,7 +18,7 @@ const cardPacks = [
   { id: 'poppy', name: 'Poppy', level: 5 },
   { id: 'bluebird', name: 'Bluebird', level: 7 }
 ];
-const defaultData = { profile: { xp: 0, points: 0, completed: [], gamesPlayed: 0, cardBack: 0 }, recent: 'sudoku', games: {} };
+const defaultData = { profile: { xp: 0, credits: 15, completed: [], gamesPlayed: 0, cardBack: 0 }, recent: 'sudoku', games: {} };
 let data = loadData();
 let activeGame = null;
 let activeFilter = 'all';
@@ -34,14 +35,18 @@ function loadData() {
         if (id === 'sudoku' && state.givens?.length === 81) games[id] = state;
         if (id === 'solitaire' && state.tableau?.length === 7) games[id] = { ...state, selected: null, drag: null, suppressClick: false };
         if (id === 'mahjong' && state.tiles?.[0]?.face) games[id] = state;
-        if (id === 'wordsearch' && Array.isArray(state.placements?.[0]) && typeof state.placements[0][0] === 'number') games[id] = state;
+        if (id === 'wordsearch' && gameModules.wordsearch.isValidState(state)) games[id] = state;
         if (id === 'crossword' && state.rows?.length === 5) games[id] = state;
       }
     }
-    return { ...structuredClone(defaultData), ...saved, profile: { ...defaultData.profile, ...saved.profile }, games };
+    return { ...structuredClone(defaultData), ...saved, profile: normalizeProfile(saved.profile), games };
   } catch {
     return structuredClone(defaultData);
   }
+}
+
+function normalizeProfile(profile = {}) {
+  return { ...defaultData.profile, ...normalizeWalletProfile(profile, defaultData.profile.credits) };
 }
 
 function persist() {
@@ -61,7 +66,8 @@ function updateProfile() {
   const level = currentLevel();
   document.querySelector('#playerLevel').textContent = `Level ${level}`;
   document.querySelector('#playerTitle').textContent = playerTitle();
-  document.querySelector('#coinCount').textContent = data.profile.points;
+  document.querySelector('#coinCount').textContent = data.profile.credits;
+  document.querySelector('#gameCredits').textContent = data.profile.credits;
   document.querySelector('#xpCount').textContent = data.profile.xp % 100;
   document.querySelector('#nextXp').textContent = 100;
   document.querySelector('#levelProgress').style.width = `${data.profile.xp % 100}%`;
@@ -109,22 +115,34 @@ function grantReward(id) {
   activeGame.state.finished = true;
   activeGame.state.rewarded = true;
   data.profile.xp += 50;
-  data.profile.points += 25;
+  awardCredits(data.profile, 25);
   data.profile.gamesPlayed += 1;
   if (!data.profile.completed.includes(id)) data.profile.completed.push(id);
   saveGameState();
   const unlockedPack = cardPacks.find(pack => pack.level > previousLevel && pack.level <= currentLevel());
   showToast(currentLevel() > previousLevel
     ? `Level ${currentLevel()}! ${playerTitle()} unlocked${unlockedPack ? ` · ${unlockedPack.name} card back unlocked` : ''}`
-    : 'Puzzle complete! +25 points · +50 XP');
+    : 'Puzzle complete! +25 credits · +50 XP');
 }
 
 function gameHelpers() {
-  return { toast: showToast, complete: grantReward };
+  return {
+    toast: showToast,
+    complete: grantReward,
+    spendCredits(amount) {
+      if (!debitCredits(data.profile, amount)) {
+        showToast(`You need ${amount} credits for that hint.`);
+        return false;
+      }
+      persist();
+      showToast(`${amount} credits spent.`);
+      return true;
+    }
+  };
 }
 
-function newGameState(id) {
-  return gameModules[id].createState();
+function newGameState(id, options = {}) {
+  return gameModules[id].createState(options);
 }
 
 function restoreGameState(id, state) {
@@ -132,7 +150,7 @@ function restoreGameState(id, state) {
   if (id === 'sudoku') return state.givens?.length === 81 ? state : null;
   if (id === 'solitaire') return state.tableau?.length === 7 ? { ...state, selected: null, drag: null, suppressClick: false } : null;
   if (id === 'mahjong') return state.tiles?.[0]?.face ? state : null;
-  if (id === 'wordsearch') return Array.isArray(state.placements?.[0]) && typeof state.placements[0][0] === 'number' ? state : null;
+  if (id === 'wordsearch') return gameModules.wordsearch.isValidState(state) ? state : null;
   if (id === 'crossword') return state.rows?.length === 5 ? state : null;
   return null;
 }
@@ -140,17 +158,17 @@ function restoreGameState(id, state) {
 function renderActiveGame() {
   if (!activeGame) return;
   const game = gameModules[activeGame.id];
-  const view = game.render(activeGame.state, { cardBack: cardPacks[data.profile.cardBack]?.id || cardPacks[0].id });
+  const view = game.render(activeGame.state, { cardBack: cardPacks[data.profile.cardBack]?.id || cardPacks[0].id, credits: data.profile.credits });
   document.querySelector('#gameBoard').innerHTML = view.board;
   document.querySelector('#gameAside').innerHTML = view.aside;
   saveGameState();
 }
 
-function openGame(id, fresh = false) {
+function openGame(id, fresh = false, options = {}) {
   if (!gameModules[id]) return;
   const info = gameModules[id].metadata;
   const savedState = fresh ? null : restoreGameState(id, data.games[id]);
-  activeGame = { id, info, state: savedState || newGameState(id) };
+  activeGame = { id, info, state: savedState || newGameState(id, options) };
   document.querySelector('#homeView').hidden = true;
   document.querySelector('#playView').hidden = false;
   document.querySelector('#gameTitle').textContent = info.title;
@@ -177,6 +195,7 @@ function dispatchGameEvent(handler, event) {
     : game[handler](event, state, gameHelpers());
   if (result?.solved || game.checkSolved?.(state) || (state.finished && !state.rewarded)) grantReward(id);
   if (result !== true && !result?.changed) return;
+  if (handler === 'handlePointerMove') return;
   renderActiveGame();
   restoreGameFocus(id, handler, result);
 }
@@ -215,6 +234,19 @@ document.addEventListener('click', event => {
 
 document.addEventListener('input', event => dispatchGameEvent('handleInput', event));
 document.addEventListener('keydown', event => dispatchGameEvent('handleKeyDown', event));
+document.addEventListener('change', event => {
+  const select = event.target.closest('[data-word-difficulty]');
+  if (!select || activeGame?.id !== 'wordsearch') return;
+  const state = activeGame.state;
+  const hasProgress = state.found.length || state.hintedWord !== null || state.first !== null;
+  if (hasProgress && !confirm('Changing difficulty starts a new word search. Continue?')) {
+    renderActiveGame();
+    return;
+  }
+  activeGame.state = newGameState('wordsearch', { difficulty: select.value });
+  renderActiveGame();
+  showToast(`${select.value[0].toUpperCase()}${select.value.slice(1)} word search ready.`);
+});
 
 const gameBoard = document.querySelector('#gameBoard');
 gameBoard.addEventListener('pointerdown', event => dispatchGameEvent('handlePointerDown', event));
@@ -231,12 +263,13 @@ document.querySelector('#backButton').addEventListener('click', () => {
 });
 document.querySelector('#newGameButton').addEventListener('click', () => {
   const id = activeGame?.id;
-  if (id && confirm('Start a fresh game? Your current board will be replaced.')) openGame(id, true);
+  const options = id === 'wordsearch' ? { difficulty: activeGame.state.difficulty } : {};
+  if (id && confirm('Start a fresh game? Your current board will be replaced.')) openGame(id, true, options);
 });
 
 document.querySelector('#profileButton').addEventListener('click', () => {
   const nextTitle = titles.find(title => title.level > currentLevel())?.name || 'All titles unlocked';
-  showDialog('YOUR PLAYFIELD PROFILE', 'A collection of little wins', `<div class="dialog-stats"><div class="dialog-stat"><strong>Level ${currentLevel()}</strong><small>${playerTitle()}</small></div><div class="dialog-stat"><strong>${data.profile.points}</strong><small>points collected</small></div><div class="dialog-stat"><strong>${data.profile.xp % 100}/100</strong><small>XP to next level</small></div><div class="dialog-stat"><strong>${data.profile.gamesPlayed}</strong><small>games completed</small></div></div><p>Titles unlock as you level up. Next title: ${nextTitle}.</p>`);
+  showDialog('YOUR PLAYFIELD PROFILE', 'A collection of little wins', `<div class="dialog-stats"><div class="dialog-stat"><strong>Level ${currentLevel()}</strong><small>${playerTitle()}</small></div><div class="dialog-stat"><strong>${data.profile.credits}</strong><small>credits available</small></div><div class="dialog-stat"><strong>${data.profile.xp % 100}/100</strong><small>XP to next level</small></div><div class="dialog-stat"><strong>${data.profile.gamesPlayed}</strong><small>games completed</small></div></div><p>Titles unlock as you level up. Next title: ${nextTitle}.</p>`);
 });
 
 document.querySelector('#collectionButton').addEventListener('click', () => {
@@ -272,7 +305,7 @@ document.querySelector('#importInput').addEventListener('change', async event =>
   try {
     const imported = JSON.parse(await file.text());
     if (![1, 2].includes(imported.version) || !imported.profile || !Array.isArray(imported.profile.completed)) throw new Error('Invalid backup');
-    data = { ...structuredClone(defaultData), ...imported, profile: { ...defaultData.profile, ...imported.profile }, games: {} };
+    data = { ...structuredClone(defaultData), ...imported, profile: normalizeProfile(imported.profile), games: {} };
     if (imported.version === 2) {
       for (const [id, state] of Object.entries(imported.games || {})) {
         const compatible = restoreGameState(id, state);

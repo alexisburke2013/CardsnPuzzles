@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { gameModules } from '../games/index.js';
+import { normalizeWalletProfile, spendCredits, awardCredits } from '../wallet.js';
+import { HINT_COST } from '../games/hints.js';
 
 const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const quietHelpers = { toast() {}, complete() {} };
@@ -103,6 +105,24 @@ test('Solitaire pointer drag drops a card and flips the newly exposed card', () 
   }
 });
 
+test('Solitaire can complete by building all four foundations to King', () => {
+  const solitaire = gameModules.solitaire;
+  const state = solitaire.createState();
+  const suits = ['♠', '♥', '♦', '♣'];
+  state.stock = [];
+  state.waste = [];
+  state.foundations = suits.map(suit => Array.from({ length: 12 }, (_, index) => ({ rank: index + 1, suit })));
+  state.tableau = suits.map((suit, pile) => [{ rank: 13, suit, faceDown: false }]).concat([[], [], []]);
+  let completions = 0;
+  const helpers = { ...quietHelpers, complete() { completions++; } };
+  suits.forEach((_, pile) => {
+    solitaire.handleClick(fakeTarget('[data-card-pile]', { cardPile: String(pile), cardIndex: '0' }), state, helpers);
+    solitaire.handleClick(fakeTarget('[data-foundation]', { foundation: String(pile) }), state, helpers);
+  });
+  assert.equal(state.finished, true);
+  assert.equal(completions, 1);
+});
+
 test('Mahjong starts with open matching pairs and can clear the layered layout', () => {
   const mahjong = gameModules.mahjong;
   const state = mahjong.createState();
@@ -129,12 +149,28 @@ test('Mahjong starts with open matching pairs and can clear the layered layout',
 });
 
 test('Word Search generated placements spell every listed word', () => {
-  for (let boardNumber = 0; boardNumber < 25; boardNumber++) {
-    const state = gameModules.wordsearch.createState();
-    state.placements.forEach((placement, index) => {
-      assert.equal(placement.map(cell => state.grid[cell]).join(''), state.words[index]);
-    });
+  const wordsearch = gameModules.wordsearch;
+  for (const [difficulty, gridSize] of [['easy', 8], ['medium', 10], ['hard', 12]]) {
+    for (let boardNumber = 0; boardNumber < 10; boardNumber++) {
+      const state = wordsearch.createState({ difficulty });
+      assert.equal(state.gridSize, gridSize);
+      assert.equal(wordsearch.isValidState(state), true);
+      state.placements.forEach((placement, index) => {
+        assert.equal(placement.map(cell => state.grid[cell]).join(''), state.words[index]);
+      });
+      assert.match(wordsearch.render(state).aside, new RegExp(`value="${difficulty}" selected`));
+      let completions = 0;
+      const helpers = { ...quietHelpers, complete() { completions++; } };
+      for (const placement of state.placements) {
+        wordsearch.handleClick(fakeTarget('[data-letter]', { letter: String(placement[0]) }), state, helpers);
+        wordsearch.handleClick(fakeTarget('[data-letter]', { letter: String(placement.at(-1)) }), state, helpers);
+      }
+      assert.equal(state.finished, true);
+      assert.equal(state.found.length, state.words.length);
+      assert.equal(completions, 1);
+    }
   }
+  assert.equal(gameModules.wordsearch.isValidState({ grid: Array(64).fill('A'), words: ['CARD'], placements: [[0, 0]], found: [] }), false);
 });
 
 test('Crossword awards completion only after every clue is solved', () => {
@@ -159,4 +195,39 @@ test('Crossword awards completion only after every clue is solved', () => {
     }
   }
   assert.equal(state.finished, true);
+});
+
+test('Legacy points migrate into a single earnable credits wallet', () => {
+  assert.equal(normalizeWalletProfile({ points: 42 }).credits, 42);
+  assert.equal(normalizeWalletProfile({ points: 0 }).credits, 15);
+  assert.equal(normalizeWalletProfile({ credits: 0, points: 42 }).credits, 0);
+  const profile = normalizeWalletProfile({ points: 10 });
+  assert.equal('points' in profile, false);
+  assert.equal(spendCredits(profile, HINT_COST), true);
+  assert.equal(spendCredits(profile, 20), false);
+  assert.equal(awardCredits(profile, 25), 30);
+});
+
+test('Every starter game offers a five-credit hint and honors the shared wallet', () => {
+  for (const game of Object.values(gameModules)) {
+    const state = game.createState();
+    assert.match(game.render(state, { credits: 15 }).aside, /data-game-hint/, `${game.metadata.id} renders a hint`);
+    assert.match(game.render(state, { credits: HINT_COST - 1 }).aside, /data-game-hint[^>]*disabled/, `${game.metadata.id} disables unaffordable hints`);
+    const target = fakeTarget('[data-game-hint]', {});
+    const affordableWallet = { credits: 10 };
+    const affordableHelpers = {
+      ...quietHelpers,
+      spendCredits: amount => spendCredits(affordableWallet, amount)
+    };
+    game.handleClick(target, state, affordableHelpers);
+    assert.equal(affordableWallet.credits, 10 - HINT_COST, `${game.metadata.id} charges for a hint`);
+
+    const poorWallet = { credits: HINT_COST - 1 };
+    const freshState = game.createState();
+    game.handleClick(target, freshState, {
+      ...quietHelpers,
+      spendCredits: amount => spendCredits(poorWallet, amount)
+    });
+    assert.equal(poorWallet.credits, HINT_COST - 1, `${game.metadata.id} does not overspend`);
+  }
 });

@@ -12,6 +12,7 @@ const CLUES = [
   'Reasoning that helps solve a puzzle'
 ];
 const ANSWERS = ['APPLE', 'BERRY', 'CHESS', 'DECKS', 'LOGIC'];
+import { HINT_COST, hintButton } from './hints.js';
 
 export const metadata = {
   id: 'crossword',
@@ -26,12 +27,38 @@ export function createState() {
   return { clues: [...CLUES], answers: [...ANSWERS], rows: ANSWERS.map(answer => Array(answer.length).fill('')), solved: [], finished: false };
 }
 
-export function render(state) {
+export function render(state, { credits = 0 } = {}) {
   const rows = state.clues.map((clue, row) => `<p class="crossword-clue"><b>${row + 1}.</b><span>${clue}</span></p><div class="crossword-row ${state.solved.includes(row) ? 'is-solved' : ''}">${state.rows[row].map((letter, column) => `<input class="crossword-cell" inputmode="text" autocomplete="off" maxlength="1" data-cross-row="${row}" data-cross-col="${column}" aria-label="Answer ${row + 1}, letter ${column + 1}" value="${letter}" ${state.solved.includes(row) ? 'readonly' : ''}>`).join('')}</div>`).join('');
   return {
     board: `<div class="crossword">${rows}</div>`,
-    aside: '<p class="aside-label">MINI CROSSWORD · ACROSS</p><h2 class="aside-title">Five clues, no rush</h2><p class="aside-copy">Type a letter in each square. Correct answers turn green; the next square gets focus automatically.</p><div class="reward-line"><span>Solve every clue</span><strong>+25 points<br>+50 XP</strong></div>'
+    aside: `<p class="aside-label">MINI CROSSWORD · ACROSS</p><h2 class="aside-title">Five clues, no rush</h2><p class="aside-copy">Type a letter in each square. Correct answers turn green; the next square gets focus automatically.</p>${hintButton('Reveal one letter', { credits, finished: state.finished })}<div class="reward-line"><span>Solve every clue</span><strong>+25 credits<br>+50 XP</strong></div>`
   };
+}
+
+export function handleClick(target, state, helpers) {
+  const input = target.closest('[data-cross-row]');
+  if (input) {
+    state.selected = { row: Number(input.dataset.crossRow), column: Number(input.dataset.crossCol) };
+    return { changed: false };
+  }
+  if (!target.closest('[data-game-hint]')) return false;
+  let row = state.selected && !state.solved.includes(state.selected.row)
+    ? state.selected.row
+    : state.answers.findIndex((_, index) => !state.solved.includes(index));
+  if (row < 0) { helpers.toast('Every clue is already solved.'); return true; }
+  const start = state.selected?.row === row ? state.selected.column : 0;
+  let column = -1;
+  for (let offset = 0; offset < state.answers[row].length; offset++) {
+    const candidate = (start + offset) % state.answers[row].length;
+    if (state.rows[row][candidate] !== state.answers[row][candidate]) { column = candidate; break; }
+  }
+  if (column < 0) { helpers.toast('That answer has no letters left to reveal.'); return true; }
+  if (!helpers.spendCredits(HINT_COST)) return true;
+  state.rows[row][column] = state.answers[row][column];
+  state.selected = { row, column };
+  checkRow(state, row);
+  const nextColumn = state.rows[row].findIndex((letter, index) => letter !== state.answers[row][index]);
+  return { changed: true, focus: { row, column: nextColumn < 0 ? column : nextColumn }, solved: state.finished };
 }
 
 export function handleInput(target, state) {
@@ -41,12 +68,14 @@ export function handleInput(target, state) {
   const value = target.value.replace(/[^a-z]/gi, '').toUpperCase().slice(-1);
   target.value = value;
   state.rows[row][column] = value;
+  state.selected = { row, column };
   if (value && column < state.rows[row].length - 1) {
-    checkRow(state, row);
-    return { changed: true, focus: { row, column: column + 1 } };
+    const solved = checkRow(state, row);
+    state.selected = { row, column: column + 1 };
+    return { changed: true, focus: state.selected, solved: solved && state.finished };
   }
-  checkRow(state, row);
-  return { changed: true };
+  const solved = checkRow(state, row);
+  return { changed: true, solved: solved && state.finished };
 }
 
 function checkRow(state, row) {
@@ -56,4 +85,4 @@ function checkRow(state, row) {
   return true;
 }
 
-export default { metadata, createState, render, handleInput };
+export default { metadata, createState, render, handleClick, handleInput };

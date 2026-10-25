@@ -57,7 +57,7 @@
           <div class="featured-copy">
             <p class="eyebrow">A GOOD PLACE TO START</p>
             <h2 id="featuredTitle">A fresh puzzle<br>is waiting.</h2>
-            <p>Take a few quiet minutes with Sudoku. Every solved game earns points and XP.</p>
+            <p>Take a few quiet minutes with Sudoku. Every solved game earns credits and XP.</p>
             <button class="primary-button" data-launch="sudoku">Play Sudoku <span aria-hidden="true">↗</span></button>
           </div>
           <div class="featured-art" aria-hidden="true">
@@ -78,7 +78,7 @@
         </section>
 
         <section class="stats-row" aria-label="Player progress">
-          <div class="stat-block"><span class="stat-icon coin-icon" aria-hidden="true">●</span><div><strong id="coinCount">0</strong><small>points collected</small></div></div>
+          <div class="stat-block"><span class="stat-icon coin-icon" aria-hidden="true">●</span><div><strong id="coinCount">15</strong><small>credits available</small></div></div>
           <div class="stat-block"><span class="stat-icon xp-icon" aria-hidden="true">✳</span><div><strong><span id="xpCount">0</span><small class="stat-unit"> / <span id="nextXp">100</span> XP</small></strong><small>to your next level</small></div></div>
           <div class="level-progress" aria-label="Progress to next level"><span id="levelProgress"></span></div>
         </section>
@@ -98,6 +98,7 @@
       <section class="play-view" id="playView" hidden>
         <div class="play-topline">
           <button class="back-button" id="backButton"><span aria-hidden="true">←</span> Game shelf</button>
+          <span class="wallet-chip" aria-label="Wallet balance"><span aria-hidden="true">●</span><strong id="gameCredits">15</strong><small>credits</small></span>
           <span class="save-status"><span class="status-dot"></span> Progress saved</span>
         </div>
         <div class="play-heading"><div><p class="eyebrow" id="gameCategory">PUZZLE</p><h1 id="gameTitle">Sudoku</h1><p id="gameDescription" class="game-description"></p></div><button class="quiet-button" id="newGameButton" title="Start a fresh game">New game <span aria-hidden="true">↻</span></button></div>

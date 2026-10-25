@@ -1,6 +1,7 @@
-const CACHE_NAME = 'playfield-shell-v2';
+const CACHE_NAME = 'playfield-shell-v3';
 const APP_FILES = [
-  './', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icon.svg',
+  './', './index.html', './styles.css', './app.js', './wallet.js', './manifest.webmanifest', './icon.svg',
+  './games/hints.js',
   './games/index.js', './games/solitaire.js', './games/sudoku.js', './games/mahjong.js',
   './games/wordsearch.js', './games/crossword.js'
 ];

@@ -5,6 +5,7 @@
  * - canSelect() contains the covered/blocked-side rules for this small layout.
  */
 const TILE_PAIRS = ['●', '◆', '♣', '✳', '▲', '✦', '☼', '♥', '♪', '✿'];
+import { HINT_COST, hintButton } from './hints.js';
 
 export const metadata = {
   id: 'mahjong',
@@ -54,7 +55,7 @@ function canSelect(tile, tiles) {
   return !above && (!leftBlocked || !rightBlocked);
 }
 
-export function render(state) {
+export function render(state, { credits = 0 } = {}) {
   const remaining = state.tiles.filter(tile => !tile.removed).length;
   const tiles = state.tiles.map(tile => {
     const selected = state.selected === tile.id;
@@ -65,19 +66,25 @@ export function render(state) {
   }).join('');
   return {
     board: `<div class="mahjong-board" role="group" aria-label="Layered Mahjong matching board">${tiles}</div>`,
-    aside: `<p class="aside-label">TILE GARDEN · ${remaining} LEFT</p><h2 class="aside-title">Clear the canopy</h2><p class="aside-copy">A tile opens when at least one side is clear. Clear the two canopy pairs to uncover the garden below. Use a nudge if you get stuck.</p><button class="game-action" data-mahjong-hint>Show an open pair</button><div class="reward-line"><span>Clear the garden</span><strong>+25 points<br>+50 XP</strong></div>`
+    aside: `<p class="aside-label">TILE GARDEN · ${remaining} LEFT</p><h2 class="aside-title">Clear the canopy</h2><p class="aside-copy">A tile opens when at least one side is clear. Clear the two canopy pairs to uncover the garden below.</p>${hintButton('Show an open pair', { credits, finished: state.finished })}<div class="reward-line"><span>Clear the garden</span><strong>+25 credits<br>+50 XP</strong></div>`
   };
 }
 
 export function handleClick(target, state, helpers) {
-  if (target.closest('[data-mahjong-hint]')) {
+  if (target.closest('[data-game-hint]')) {
     const available = state.tiles.filter(tile => canSelect(tile, state.tiles));
-    const pair = available.find((tile, index) => available.slice(index + 1).some(other => other.face === tile.face));
-    if (pair) {
-      const match = available.find(tile => tile.id !== pair.id && tile.face === pair.face);
-      state.hinted = [pair.id, match.id];
-      state.selected = pair.id;
-    } else helpers.toast('No open pair remains. Start a fresh layout.');
+    const pair = available.find((tile, index) => available.slice(index + 1).some(other =>
+      other.face === tile.face && !state.hinted.includes(tile.id) && !state.hinted.includes(other.id)));
+    if (!pair) {
+      if (state.hinted.length) helpers.toast('That pair is already highlighted.');
+      else helpers.toast('No open pair remains. Start a fresh layout.');
+      return true;
+    }
+    const match = available.find(tile => tile.id !== pair.id && tile.face === pair.face && !state.hinted.includes(tile.id));
+    if (!match) { helpers.toast('That pair is already highlighted.'); return true; }
+    if (!helpers.spendCredits(HINT_COST)) return true;
+    state.hinted = [pair.id, match.id];
+    state.selected = pair.id;
     return true;
   }
   const button = target.closest('[data-tile]');

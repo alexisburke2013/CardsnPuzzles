@@ -6,6 +6,7 @@
  */
 const PUZZLE = '100400009050080120009100406030507090500801004090030500305070010070902040900040078';
 const SOLUTION = '123456789456789123789123456234567891567891234891234567345678912678912345912345678';
+import { HINT_COST, hintButton } from './hints.js';
 
 export const metadata = {
   id: 'sudoku',
@@ -56,7 +57,7 @@ function findNextEmpty(state, afterIndex) {
   return afterIndex;
 }
 
-export function render(state) {
+export function render(state, { credits = 0 } = {}) {
   const cells = state.cells.map((value, index) => {
     const row = Math.floor(index / 9);
     const column = index % 9;
@@ -75,11 +76,21 @@ export function render(state) {
 
   return {
     board: `<div class="sudoku-controls"><div class="sudoku-board" role="group" aria-label="Sudoku board">${cells}</div><div class="number-pad" aria-label="Choose a number">${Array.from({ length: 9 }, (_, index) => `<button data-number="${index + 1}" aria-label="Enter ${index + 1}">${index + 1}</button>`).join('')}<button data-number="0" aria-label="Erase selected cell">⌫</button></div></div>`,
-    aside: '<p class="aside-label">A SMALL TIP</p><h2 class="aside-title">Find your next number</h2><p class="aside-copy">Type straight into any empty square, or choose one and tap a number. Arrow keys move between squares; Backspace clears a square.</p><div class="reward-line"><span>Solve the board</span><strong>+25 points<br>+50 XP</strong></div>'
+    aside: `<p class="aside-label">SUDOKU · 9 × 9</p><h2 class="aside-title">Find your next number</h2><p class="aside-copy">Type straight into any empty square, or choose one and tap a number. Arrow keys move between squares; Backspace clears a square.</p>${hintButton('Reveal one square', { credits, finished: state.finished })}<div class="reward-line"><span>Solve the board</span><strong>+25 credits<br>+50 XP</strong></div>`
   };
 }
 
-export function handleClick(target, state) {
+export function handleClick(target, state, helpers) {
+  if (target.closest('[data-game-hint]')) {
+    const index = state.selected !== null && state.cells[state.selected] !== state.solution[state.selected]
+      ? state.selected
+      : state.cells.findIndex((value, cell) => value !== state.solution[cell]);
+    if (index < 0) { helpers.toast('Every square is already correct.'); return true; }
+    if (!helpers.spendCredits(HINT_COST)) return true;
+    state.cells[index] = state.solution[index];
+    state.selected = findNextEmpty(state, index);
+    return { changed: true, solved: isSolved(state), focus: state.selected };
+  }
   const numberButton = target.closest('[data-number]');
   if (numberButton) {
     if (state.selected !== null) return enterNumber(state, Number(numberButton.dataset.number), state.selected);
