@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f1e8">
+  <meta name="description" content="A small, welcoming home for card games and puzzles.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <title>Playfield | Cards & Puzzles</title>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="#home" aria-label="Playfield home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+        <span>playfield<small>cards & puzzles</small></span>
+      </a>
+      <nav class="side-nav">
+        <a class="nav-link is-active" href="#home" data-nav="home"><span aria-hidden="true">⌂</span> Home</a>
+        <a class="nav-link" href="#games" data-nav="games"><span aria-hidden="true">▦</span> Game library</a>
+        <button class="nav-link" id="collectionButton"><span aria-hidden="true">✳</span> My collection</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="local-note"><span class="status-dot"></span><span>Saved on this device</span></div>
+        <button class="nav-link" id="backupButton"><span aria-hidden="true">⇧</span> Back up progress</button>
+        <label class="nav-link import-link" for="importInput"><span aria-hidden="true">⇩</span> Restore backup</label>
+        <input id="importInput" type="file" accept="application/json,.json" hidden>
+        <a class="nav-link" href="#about" id="aboutButton"><span aria-hidden="true">ⓘ</span> About & controls</a>
+      </div>
+    </aside>
+
+    <main class="main-content" id="home">
+      <header class="topbar">
+        <div class="mobile-brand"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span> playfield</div>
+        <div class="topbar-spacer"></div>
+        <button class="install-button" id="installButton" hidden><span aria-hidden="true">↓</span> Install</button>
+        <button class="profile-chip" id="profileButton" aria-label="Open player profile">
+          <span class="avatar" aria-hidden="true">P</span>
+          <span class="profile-copy"><strong id="playerLevel">Level 1</strong><small id="playerTitle">Newcomer</small></span>
+          <span class="profile-chevron" aria-hidden="true">⌄</span>
+        </button>
+      </header>
+
+      <section class="home-view" id="homeView">
+        <div class="welcome-row">
+          <div>
+            <p class="eyebrow" id="dateLabel">YOUR DAILY PLAYGROUND</p>
+            <h1>A little play,<br><em>every day.</em></h1>
+            <p class="welcome-copy">Pick up a familiar favorite or give your brain a new kind of break.</p>
+          </div>
+          <div class="daily-stamp" aria-label="Today's date"><span class="stamp-sun">✳</span><span>YOUR<br>OWN PACE</span></div>
+        </div>
+
+        <section class="featured" aria-labelledby="featuredTitle">
+          <div class="featured-copy">
+            <p class="eyebrow">A GOOD PLACE TO START</p>
+            <h2 id="featuredTitle">A fresh puzzle<br>is waiting.</h2>
+            <p>Take a few quiet minutes with Sudoku. Every solved game earns points and XP.</p>
+            <button class="primary-button" data-launch="sudoku">Play Sudoku <span aria-hidden="true">↗</span></button>
+          </div>
+          <div class="featured-art" aria-hidden="true">
+            <div class="sudoku-art">
+              <span>8</span><span></span><span>3</span><span></span><span>2</span><span></span><span>7</span><span></span><span>1</span>
+              <span></span><span>1</span><span></span><span>8</span><span></span><span>6</span><span></span><span>4</span><span></span>
+              <span>4</span><span></span><span>6</span><span></span><span>7</span><span></span><span>2</span><span></span><span>9</span>
+              <span></span><span>8</span><span></span><span>4</span><span></span><span>1</span><span></span><span>7</span><span></span>
+              <span>2</span><span></span><span>5</span><span></span><span>9</span><span></span><span>3</span><span></span><span>6</span>
+              <span></span><span>3</span><span></span><span>7</span><span></span><span>2</span><span></span><span>9</span><span></span>
+              <span>5</span><span></span><span>1</span><span></span><span>3</span><span></span><span>8</span><span></span><span>4</span>
+              <span></span><span>2</span><span></span><span>9</span><span></span><span>8</span><span></span><span>1</span><span></span>
+              <span>9</span><span></span><span>8</span><span></span><span>1</span><span></span><span>6</span><span></span><span>2</span>
+            </div>
+            <span class="art-spark spark-one">✳</span><span class="art-spark spark-two">✦</span>
+          </div>
+          <span class="feature-index">01 / 06</span>
+        </section>
+
+        <section class="stats-row" aria-label="Player progress">
+          <div class="stat-block"><span class="stat-icon coin-icon" aria-hidden="true">●</span><div><strong id="coinCount">0</strong><small>points collected</small></div></div>
+          <div class="stat-block"><span class="stat-icon xp-icon" aria-hidden="true">✳</span><div><strong><span id="xpCount">0</span><small class="stat-unit"> / <span id="nextXp">100</span> XP</small></strong><small>to your next level</small></div></div>
+          <div class="level-progress" aria-label="Progress to next level"><span id="levelProgress"></span></div>
+        </section>
+
+        <section class="library-section" id="games">
+          <div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR KIND OF PLAY</p><h2>The game shelf</h2></div><span class="shelf-count" id="shelfCount">6 games</span></div>
+          <div class="filter-row" role="group" aria-label="Filter games">
+            <button class="filter-button is-selected" data-filter="all">All games</button>
+            <button class="filter-button" data-filter="cards">Card games</button>
+            <button class="filter-button" data-filter="puzzles">Puzzles</button>
+          </div>
+          <div class="game-grid" id="gameGrid"></div>
+        </section>
+        <footer class="page-footer"><span>Made for the small breaks in between.</span><span>Progress stays on this device.</span></footer>
+      </section>
+
+      <section class="play-view" id="playView" hidden>
+        <div class="play-topline">
+          <button class="back-button" id="backButton"><span aria-hidden="true">←</span> Game shelf</button>
+          <span class="save-status"><span class="status-dot"></span> Progress saved</span>
+        </div>
+        <div class="play-heading"><div><p class="eyebrow" id="gameCategory">PUZZLE</p><h1 id="gameTitle">Sudoku</h1><p id="gameDescription" class="game-description"></p></div><button class="quiet-button" id="newGameButton" title="Start a fresh game">New game <span aria-hidden="true">↻</span></button></div>
+        <div class="game-layout"><div class="game-board-wrap" id="gameBoard"></div><aside class="game-aside" id="gameAside"></aside></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="info-dialog" id="infoDialog">
+    <form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form>
+    <p class="eyebrow" id="dialogEyebrow">PLAYFIELD</p><h2 id="dialogTitle"></h2><div id="dialogContent"></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
