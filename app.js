@@ -95,15 +95,33 @@ function gameArt(type) {
 function renderCatalog() {
   const visible = gameCatalog.filter(game => activeFilter === 'all' || game.kind === activeFilter);
   document.querySelector('#shelfCount').textContent = `${visible.length} ${visible.length === 1 ? 'game' : 'games'}`;
-  document.querySelector('#gameGrid').innerHTML = visible.map(game => `
-    <article class="game-card ${game.coming ? 'is-coming' : ''}">
+  document.querySelector('#featureIndex').textContent = `01 / ${String(gameCatalog.length).padStart(2, '0')}`;
+  document.querySelector('#gameGrid').innerHTML = visible.map((game, index) => `
+    <article class="game-card ${game.coming ? 'is-coming' : ''}" style="--card-index:${index}">
       ${game.coming ? '<span class="coming-label">Coming soon</span>' : ''}
+      ${!game.coming && game.id === data.recent ? '<span class="recent-label">Last played</span>' : ''}
       <button class="game-card-button" ${game.coming ? 'disabled aria-disabled="true"' : `data-launch="${game.id}"`} aria-label="${game.coming ? `${game.title}, coming soon` : `Play ${game.title}`}" >
         <span class="game-art">${gameArt(game.art)}</span>
         <span class="game-info"><span><strong>${game.title}</strong><small>${game.subtitle}</small></span><span class="play-arrow" aria-hidden="true">↗</span></span>
       </button>
     </article>`).join('');
 }
+
+function syncNav() {
+  const hash = window.location.hash || '#home';
+  document.querySelectorAll('.nav-link[data-nav]').forEach(link => {
+    link.classList.toggle('is-active', link.getAttribute('href') === hash);
+  });
+  // Anchors can't reveal the home view while a game is open, so nav
+  // links double as a way back to the shelf.
+  if (activeGame && (hash === '#home' || hash === '#games')) {
+    activeGame = null;
+    document.querySelector('#playView').hidden = true;
+    document.querySelector('#homeView').hidden = false;
+    renderCatalog();
+  }
+}
+window.addEventListener('hashchange', syncNav);
 
 function showToast(message) {
   const toast = document.querySelector('#toast');
@@ -378,5 +396,6 @@ function pollGamepad() {
 document.querySelector('#dateLabel').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()).toUpperCase();
 renderCatalog();
 updateProfile();
+syncNav();
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(() => {});
 requestAnimationFrame(pollGamepad);

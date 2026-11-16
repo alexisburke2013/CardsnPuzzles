@@ -2,7 +2,7 @@
 
 Working checklist for the full re-assessment of Playfield (Cards & Puzzles).
 
-- **Status:** planning complete, implementation not started
+- **Status:** P0 milestone complete (BUG 1–5 fixed, touch ergonomics, rng/store seams); P1+ not started
 - **Target platforms (priority order):** touch-first (phone/tablet) → desktop/PC → controller
 - **Planned backend:** Supabase (email accounts + logins + cross-device sync) — later phase
 - **Out of scope for now:** Vercel, Cloudflare, test/check tooling (source-code work only)
@@ -18,7 +18,7 @@ several findings below were confirmed empirically and should be re-confirmed aft
 These were confirmed with `getComputedStyle`, `document.fonts`, and
 `performance.getEntriesByType('resource')` — not by reading code alone.
 
-### [ ] BUG 1 — Bottom half of `styles.css` is dead code (malformed media queries)
+### [x] BUG 1 — Bottom half of `styles.css` is dead code (malformed media queries)
 - **Evidence:** `styles.css` is 21 minified lines. Lines 2, 4, 6, 8, 10, 12 are
   `@media(max-width:1050px)` with **no `{ }` block**, so each swallows the next rule.
   Chrome parsed the file into 249 rules including six empty `@media not all { }` blocks.
@@ -30,7 +30,7 @@ These were confirmed with `getComputedStyle`, `document.fonts`, and
 - **Fix:** repair the media queries (or rebuild the stylesheet — see 1.1). Re-verify each
   selector computes as intended.
 
-### [ ] BUG 2 — Google Fonts never load; whole design falls back to system fonts
+### [x] BUG 2 — Google Fonts never load; whole design falls back to system fonts
 - **Evidence:** `@import url('https://fonts.googleapis.com/...')` sits at line 13, after other
   rules, so the browser **ignores it**. Also confirmed no font network requests
   (`performance.getEntriesByType('resource')` → none) and DM Sans "M" width == monospace width.
@@ -39,28 +39,36 @@ These were confirmed with `getComputedStyle`, `document.fonts`, and
 - **Fix:** self-host the fonts (recommended) or move `@import` to the top of the sheet; add the
   font files to the service-worker cache list.
 
-### [ ] BUG 3 — Hint highlighting has no styling
+### [x] BUG 3 — Hint highlighting has no styling
 - **Evidence:** `solitaire.js`, `mahjong.js`, `wordsearch.js` render `is-hint-source` /
   `is-hint-target`; the CSS rules exist but never apply because of BUG 1.
 - **Impact:** spending 5 credits on a hint gives **zero visual feedback**.
 - **Fix:** resolved by BUG 1; verify the pulse animation appears.
 
-### [ ] BUG 4 — Non-functional / dead UI
-- [ ] `01 / 06` hardcoded in `index.html` — there are 8 games; never updates.
-- [ ] `data-nav` on nav links never read by JS → no active-state sync, no routing
+### [x] BUG 4 — Non-functional / dead UI
+- [x] `01 / 06` hardcoded in `index.html` — there are 8 games; never updates.
+- [x] `data-nav` on nav links never read by JS → no active-state sync, no routing
       (`hashchange` / `pushState` unused).
-- [ ] `.mobile-brand` is `display:none` in both base CSS and the `max-width:760px` block →
+- [x] `.mobile-brand` is `display:none` in both base CSS and the `max-width:760px` block →
       mobile header brand never visible.
-- [ ] `--card-index` used for staggered card animation but never set by `app.js` → cards all
+- [x] `--card-index` used for staggered card animation but never set by `app.js` → cards all
       animate at once.
-- [ ] `.playing-card.is-top` styled but never emitted.
-- [ ] `data.recent` written in `saveGameState()` but never read.
+- [x] `.playing-card.is-top` styled but never emitted.
+- [x] `data.recent` written in `saveGameState()` but never read.
+- **Fix:** `#featureIndex` and per-card `--card-index` are now written in `renderCatalog()`;
+  `syncNav()` reads `data-nav` on `hashchange` (and exits an open game back to the shelf);
+  the phone breakpoint now shows `.mobile-brand`; `solitaire.js` emits `is-top` on each
+  face-up pile top; the most recent game carries a "Last played" label. Verified in-browser:
+  index `01 / 08`, indices `0…7`, one recent label, nav active state + exit routing, 7 `is-top` cards.
 
-### [ ] BUG 5 — PWA is iOS-incomplete
-- [ ] `viewport-fit=cover` present but **no `env(safe-area-inset-*)`** → content sits under
+### [x] BUG 5 — PWA is iOS-incomplete
+- [x] `viewport-fit=cover` present but **no `env(safe-area-inset-*)`** → content sits under
       the iPhone notch / home indicator.
-- [ ] No `apple-touch-icon` link.
-- [ ] Manifest ships only `icon.svg`; iOS ignores SVG for Add-to-Home-Screen → **no PNG icons**.
+- [x] No `apple-touch-icon` link.
+- [x] Manifest ships only `icon.svg`; iOS ignores SVG for Add-to-Home-Screen → **no PNG icons**.
+- **Fix:** safe-area insets applied to the topbar, content, toast, and the phone bottom nav;
+  `apple-touch-icon` link and iOS web-app meta added; manifest now lists `icon-192.png`,
+  `icon-512.png` (any + maskable), all cached by `sw.js` (`playfield-shell-v5`).
 
 ---
 

@@ -944,6 +944,19 @@ button {
   font:8px var(--mono);
   text-transform:uppercase;
 }
+.recent-label {
+  position:absolute;
+  top:9px;
+  left:9px;
+  z-index:2;
+  padding:4px 7px;
+  border-radius:2px;
+  background:var(--green);
+  color:#f3f1e8;
+  font:8px var(--mono);
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
 .is-coming .game-art {
   filter:saturate(.55);
 }
@@ -1195,6 +1208,7 @@ button {
 }
 .playing-card.is-top {
   cursor:pointer;
+  box-shadow:0 2px 2px #27322818,0 0 0 2px #f2c6555c;
 }
 .card-back {
   background:repeating-linear-gradient(45deg,#dce6d9,#dce6d9 4px,#f9f6e9 4px,#f9f6e9 7px);

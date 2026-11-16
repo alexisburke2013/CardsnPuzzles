@@ -148,7 +148,8 @@ export function render(state, { cardBack = 'meadow', credits = 0 } = {}) {
   const columns = state.tableau.map((pile, pileIndex) => `<div class="card-pile ${state.hint?.destination?.type === 'tableau' && state.hint.destination.index === pileIndex ? 'is-hint-target' : ''}" data-pile="${pileIndex}">${pile.length ? pile.map((card, cardIndex) => {
     const selected = state.selected?.from === 'tableau' && state.selected.pile === pileIndex && cardIndex >= state.selected.index;
     const hintedSource = state.hint?.from === 'tableau' && state.hint.pile === pileIndex && cardIndex === state.hint.index;
-    return `<button class="playing-card ${isRed(card) ? 'red' : ''} ${card.faceDown ? `is-face-down card-back pack-${cardBack}` : 'is-selectable'} ${selected ? 'is-selected' : ''} ${hintedSource ? 'is-hint-source' : ''}" style="z-index:${cardIndex}" data-card-pile="${pileIndex}" data-card-index="${cardIndex}" aria-label="${card.faceDown ? 'Face-down card' : cardLabel(card)}" ${card.faceDown ? 'disabled' : ''}>${card.faceDown ? '✳' : cardLabel(card)}</button>`;
+    const isTop = cardIndex === pile.length - 1 && !card.faceDown;
+    return `<button class="playing-card ${isRed(card) ? 'red' : ''} ${card.faceDown ? `is-face-down card-back pack-${cardBack}` : 'is-selectable'} ${isTop ? 'is-top' : ''} ${selected ? 'is-selected' : ''} ${hintedSource ? 'is-hint-source' : ''}" style="z-index:${cardIndex}" data-card-pile="${pileIndex}" data-card-index="${cardIndex}" aria-label="${card.faceDown ? 'Face-down card' : cardLabel(card)}" ${card.faceDown ? 'disabled' : ''}>${card.faceDown ? '✳' : cardLabel(card)}</button>`;
   }).join('') : '<span class="pile-mark">♧</span>'}</div>`).join('');
   const selectedCard = selectedCards(state)[0];
   const selectedLabel = selectedCard ? `Selected ${cardLabel(selectedCard)}. ` : '';
