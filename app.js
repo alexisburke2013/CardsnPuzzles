@@ -1,8 +1,7 @@
 import { gameModules, comingSoonGames } from './games/index.js';
 import { awardCredits, normalizeWalletProfile, spendCredits as debitCredits } from './wallet.js';
+import { load as loadSave, save as writeSave } from './store.js';
 
-const STORAGE_KEY = 'playfield-save-v2';
-const LEGACY_STORAGE_KEY = 'playfield-save-v1';
 const gameCatalog = [...Object.values(gameModules).map(game => game.metadata), ...comingSoonGames];
 const playableGames = Object.keys(gameModules);
 const titles = [
@@ -19,30 +18,43 @@ const cardPacks = [
   { id: 'bluebird', name: 'Bluebird', level: 7 }
 ];
 const defaultData = { profile: { xp: 0, credits: 15, completed: [], gamesPlayed: 0, cardBack: 0 }, recent: 'sudoku', games: {} };
+
+/* Per-game save schema. `validate` rejects boards whose shape no longer fits,
+   so a game can change its state without breaking older saves. `restore` runs
+   after validation to strip transient fields (drag objects, selections) that
+   must never be persisted. Bump a game's `version` when its shape changes and
+   add a migration where the old data can be repaired instead of dropped. */
+const gameSchema = {
+  sudoku: { version: 1, validate: state => state.givens?.length === 81 },
+  solitaire: { version: 1, validate: state => state.tableau?.length === 7, restore: state => ({ ...state, selected: null, drag: null, suppressClick: false }) },
+  mahjong: { version: 1, validate: state => state.tiles?.[0]?.face },
+  wordsearch: { version: 1, validate: state => gameModules.wordsearch.isValidState(state) },
+  crossword: { version: 1, validate: state => state.rows?.length === 5 }
+};
+
 let data = loadData();
 let activeGame = null;
 let activeFilter = 'all';
 let toastTimer;
 let installPrompt = null;
 
+function restoreGameState(id, state) {
+  const schema = gameSchema[id];
+  if (!state || state.finished || !schema?.validate(state)) return null;
+  return schema.restore ? schema.restore(state) : state;
+}
+
 function loadData() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY));
-    if (!saved?.profile || ![1, 2].includes(saved.version)) return structuredClone(defaultData);
-    const games = {};
-    if (saved.version === 2) {
-      for (const [id, state] of Object.entries(saved.games || {})) {
-        if (id === 'sudoku' && state.givens?.length === 81) games[id] = state;
-        if (id === 'solitaire' && state.tableau?.length === 7) games[id] = { ...state, selected: null, drag: null, suppressClick: false };
-        if (id === 'mahjong' && state.tiles?.[0]?.face) games[id] = state;
-        if (id === 'wordsearch' && gameModules.wordsearch.isValidState(state)) games[id] = state;
-        if (id === 'crossword' && state.rows?.length === 5) games[id] = state;
-      }
+  const saved = loadSave({ supportedVersions: [1, 2] });
+  if (!saved?.profile) return structuredClone(defaultData);
+  const games = {};
+  if (saved.version === 2) {
+    for (const [id, state] of Object.entries(saved.games || {})) {
+      const compatible = restoreGameState(id, state);
+      if (compatible) games[id] = compatible;
     }
-    return { ...structuredClone(defaultData), ...saved, profile: normalizeProfile(saved.profile), games };
-  } catch {
-    return structuredClone(defaultData);
   }
+  return { ...structuredClone(defaultData), ...saved, profile: normalizeProfile(saved.profile), games };
 }
 
 function normalizeProfile(profile = {}) {
@@ -51,8 +63,7 @@ function normalizeProfile(profile = {}) {
 
 function persist() {
   try {
-    data.version = 2;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    writeSave(data);
     updateProfile();
   } catch {
     showToast('This browser could not save progress. Check available storage.');
@@ -143,16 +154,6 @@ function gameHelpers() {
 
 function newGameState(id, options = {}) {
   return gameModules[id].createState(options);
-}
-
-function restoreGameState(id, state) {
-  if (!state || state.finished) return null;
-  if (id === 'sudoku') return state.givens?.length === 81 ? state : null;
-  if (id === 'solitaire') return state.tableau?.length === 7 ? { ...state, selected: null, drag: null, suppressClick: false } : null;
-  if (id === 'mahjong') return state.tiles?.[0]?.face ? state : null;
-  if (id === 'wordsearch') return gameModules.wordsearch.isValidState(state) ? state : null;
-  if (id === 'crossword') return state.rows?.length === 5 ? state : null;
-  return null;
 }
 
 function renderActiveGame() {

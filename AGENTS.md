@@ -10,7 +10,10 @@ Playfield is a browser-first PWA hub for short card and puzzle games. It is a st
 
 - `index.html`: shared hub and game-shell markup. The app script must remain `type="module"`.
 - `app.js`: catalog, profile progression, local persistence, rewards, game lifecycle, PWA install, backup/restore, and cross-game input dispatch.
+- `store.js`: the save read/write seam and schema versioning. Backed by `localStorage` today; a Supabase adapter can implement the same shape later.
+- `rng.js`: seeded random generator (`createRng`, `todaySeed`) so daily or shared boards are reproducible.
 - `wallet.js`: the shared earn/spend/legacy-migration rules for the player credit balance.
+- `fonts/`: self-hosted DM Sans, DM Mono, and Playfair Display WOFF2 subsets (`fonts.css` plus `LICENSE.txt`).
 - `games/hints.js`: shared hint price and disabled-state button markup.
 - `games/index.js`: registry for playable modules and metadata for coming-soon games.
 - `games/solitaire.js`: deal, move validation, click/tap, pointer drag/drop, and Solitaire rendering.
@@ -50,7 +53,7 @@ For content tweaks, edit the constants at the top of the corresponding module: S
 
 ## 05. Save and Progression Rules
 
-Local saves live in `localStorage` under `playfield-save-v2`; the legacy v1 profile is still read. `wallet.js` migrates legacy `points` to `credits`; keep this migration and backup imports intact. When game state shapes change, validate saved boards in `restoreGameState()` in `app.js`; preserve profile XP, credits, titles, and cosmetics even if an old in-progress board must restart. Keep backups importable and versioned.
+Local saves live in `localStorage` under `playfield-save-v2`; the legacy v1 profile is still read. `store.js` owns the keys and the schema version, `wallet.js` migrates legacy `points` to `credits`. When game state shapes change, validate saved boards in the `gameSchema` table in `app.js`; preserve profile XP, credits, titles, and cosmetics even if an old in-progress board must restart. Keep backups importable and versioned.
 
 New profiles start with 15 credits. The shared reward is currently 25 credits and 50 XP per completed game; each game hint costs 5 credits. `app.js` owns wallet spending and reward-once logic; game modules signal completion and request hint spending but must not mutate the wallet directly.
 
@@ -72,6 +75,8 @@ Quick checks:
 node --check app.js
 node --check sw.js
 node --check wallet.js
+node --check store.js
+node --check rng.js
 for file in games/*.js; do node --check "$file"; done
 node --test tests/games.test.js
 ```

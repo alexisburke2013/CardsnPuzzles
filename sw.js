@@ -1,6 +1,6 @@
 const CACHE_NAME = 'playfield-shell-v4';
 const APP_FILES = [
-  './', './index.html', './styles.css', './app.js', './wallet.js', './manifest.webmanifest', './icon.svg',
+  './', './index.html', './styles.css', './app.js', './wallet.js', './store.js', './rng.js', './manifest.webmanifest', './icon.svg',
   './fonts/fonts.css',
   './fonts/dm-sans-400-latin.woff2', './fonts/dm-sans-400-latin-ext.woff2',
   './fonts/dm-mono-400-latin.woff2', './fonts/dm-mono-400-latin-ext.woff2',

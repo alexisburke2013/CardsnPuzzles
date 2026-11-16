@@ -3,6 +3,8 @@ import test from 'node:test';
 import { gameModules } from '../games/index.js';
 import { normalizeWalletProfile, spendCredits, awardCredits } from '../wallet.js';
 import { HINT_COST } from '../games/hints.js';
+import { createRng, todaySeed } from '../rng.js';
+import { save, load, clear, SAVE_VERSION } from '../store.js';
 
 const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const quietHelpers = { toast() {}, complete() {} };
@@ -229,5 +231,40 @@ test('Every starter game offers a five-credit hint and honors the shared wallet'
       spendCredits: amount => spendCredits(poorWallet, amount)
     });
     assert.equal(poorWallet.credits, HINT_COST - 1, `${game.metadata.id} does not overspend`);
+  }
+});
+
+test('createRng is deterministic per seed and independent across seeds', () => {
+  const a = createRng('daily-2026-11-16').shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  const b = createRng('daily-2026-11-16').shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  const c = createRng('daily-2026-11-17').shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual(a, b, 'same seed reproduces the same order');
+  assert.notDeepEqual(a, c, 'different seeds produce different orders');
+  assert.deepEqual([...a].sort((x, y) => x - y), [1, 2, 3, 4, 5, 6, 7, 8, 9], 'shuffle keeps every item');
+  assert.ok(createRng('x').int(5) < 5, 'int stays within range');
+  assert.equal(todaySeed(new Date('2026-11-16T23:30:00Z')), '2026-11-16');
+});
+
+test('store round-trips a save, reports version, and reads the legacy key', () => {
+  const backing = new Map();
+  globalThis.localStorage = {
+    getItem: key => (backing.has(key) ? backing.get(key) : null),
+    setItem: (key, value) => backing.set(key, String(value)),
+    removeItem: key => backing.delete(key)
+  };
+  try {
+    clear();
+    assert.equal(load(), null, 'empty storage yields no save');
+    save({ profile: { xp: 10, credits: 20 }, games: {} });
+    const restored = load();
+    assert.equal(restored.version, SAVE_VERSION);
+    assert.equal(restored.profile.credits, 20);
+    backing.set('playfield-save-v1', JSON.stringify({ version: 1, profile: { xp: 5, credits: 9 } }));
+    backing.delete('playfield-save-v2');
+    const legacy = load();
+    assert.equal(legacy.version, 1);
+    assert.equal(legacy.profile.credits, 9, 'legacy v1 profile is still readable');
+  } finally {
+    delete globalThis.localStorage;
   }
 });
