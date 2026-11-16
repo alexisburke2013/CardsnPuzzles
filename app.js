@@ -268,12 +268,25 @@ document.querySelector('#newGameButton').addEventListener('click', () => {
   if (id && confirm('Start a fresh game? Your current board will be replaced.')) openGame(id, true, options);
 });
 
+function showAbout() {
+  showDialog('PLAYFIELD', 'Play your way', '<p>Drag cards with a mouse or finger, or tap a card and destination. Type directly into Sudoku and crossword squares. A gamepad can navigate focused controls with its D-pad and A button.</p><p>Your progress and active boards are saved in this browser on this device. Use Back up progress to download a copy; restore that file if you change browsers or devices. Clearing browser data can remove local saves.</p><p>To install on iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Other supported browsers show an Install button.</p>');
+}
+
+function backupProgress() {
+  const blob = new Blob([JSON.stringify({ ...data, version: 2 }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = `playfield-progress-${new Date().toISOString().slice(0, 10)}.json`; link.click();
+  URL.revokeObjectURL(url);
+  showToast('Progress backup downloaded.');
+}
+
 document.querySelector('#profileButton').addEventListener('click', () => {
   const nextTitle = titles.find(title => title.level > currentLevel())?.name || 'All titles unlocked';
-  showDialog('YOUR PLAYFIELD PROFILE', 'A collection of little wins', `<div class="dialog-stats"><div class="dialog-stat"><strong>Level ${currentLevel()}</strong><small>${playerTitle()}</small></div><div class="dialog-stat"><strong>${data.profile.credits}</strong><small>credits available</small></div><div class="dialog-stat"><strong>${data.profile.xp % 100}/100</strong><small>XP to next level</small></div><div class="dialog-stat"><strong>${data.profile.gamesPlayed}</strong><small>games completed</small></div></div><p>Titles unlock as you level up. Next title: ${nextTitle}.</p>`);
+  showDialog('YOUR PLAYFIELD PROFILE', 'A collection of little wins', `<div class="dialog-stats"><div class="dialog-stat"><strong>Level ${currentLevel()}</strong><small>${playerTitle()}</small></div><div class="dialog-stat"><strong>${data.profile.credits}</strong><small>credits available</small></div><div class="dialog-stat"><strong>${data.profile.xp % 100}/100</strong><small>XP to next level</small></div><div class="dialog-stat"><strong>${data.profile.gamesPlayed}</strong><small>games completed</small></div></div><p>Titles unlock as you level up. Next title: ${nextTitle}.</p><div class="dialog-actions"><button class="quiet-button" data-dialog-action="collection">My collection</button><button class="quiet-button" data-dialog-action="backup">Back up progress</button><label class="quiet-button" for="importInput">Restore backup</label><button class="quiet-button" data-dialog-action="about">About &amp; controls</button></div>`);
 });
 
-document.querySelector('#collectionButton').addEventListener('click', () => {
+function showCollection() {
   const games = playableGames.map(id => {
     const game = gameModules[id].metadata;
     return `<div class="collection-item"><span>${game.title}</span><small>${data.profile.completed.includes(id) ? 'Completed' : 'Ready to play'}</small></div>`;
@@ -284,21 +297,22 @@ document.querySelector('#collectionButton').addEventListener('click', () => {
     return `<div class="collection-item"><span>${pack.name}<small>${unlocked ? 'Card back' : `Unlock at Level ${pack.level}`}</small></span><button class="pack-select" data-pack="${index}" ${unlocked ? '' : 'disabled'}>${equipped ? 'Equipped' : unlocked ? 'Equip' : 'Locked'}</button></div>`;
   }).join('');
   showDialog('YOUR GAME SHELF', 'Your collection', `<h3 class="collection-heading">Game progress</h3><div class="collection-list">${games}</div><h3 class="collection-heading">Card backs</h3><div class="collection-list">${packs}</div>`);
+}
+
+document.querySelector('#collectionButton').addEventListener('click', showCollection);
+
+const dialogActions = { collection: showCollection, about: showAbout, backup: backupProgress };
+document.querySelector('#dialogContent').addEventListener('click', event => {
+  const action = event.target.closest('[data-dialog-action]')?.dataset.dialogAction;
+  if (dialogActions[action]) dialogActions[action]();
 });
 
 document.querySelector('#aboutButton').addEventListener('click', event => {
   event.preventDefault();
-  showDialog('PLAYFIELD', 'Play your way', '<p>Drag cards with a mouse or finger, or tap a card and destination. Type directly into Sudoku and crossword squares. A gamepad can navigate focused controls with its D-pad and A button.</p><p>Your progress and active boards are saved in this browser on this device. Use Back up progress to download a copy; restore that file if you change browsers or devices. Clearing browser data can remove local saves.</p><p>To install on iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Other supported browsers show an Install button.</p>');
+  showAbout();
 });
 
-document.querySelector('#backupButton').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify({ ...data, version: 2 }, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url; link.download = `playfield-progress-${new Date().toISOString().slice(0, 10)}.json`; link.click();
-  URL.revokeObjectURL(url);
-  showToast('Progress backup downloaded.');
-});
+document.querySelector('#backupButton').addEventListener('click', backupProgress);
 
 document.querySelector('#importInput').addEventListener('change', async event => {
   const file = event.target.files?.[0];

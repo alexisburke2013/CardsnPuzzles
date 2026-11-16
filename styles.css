@@ -1734,3 +1734,156 @@ button {
     transition:none!important;
   }
 }
+
+/* ==========================================================================
+   Touch ergonomics
+   Touch-screen first, pointer and gamepad second. Everything here is
+   additive and scoped so it never overrides the game-grid cell sizing.
+   ========================================================================== */
+
+/* Profile dialog shortcuts, shown where the sidebar footer is hidden. */
+.dialog-actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:16px;
+}
+.dialog-actions .quiet-button {
+  flex:1 1 auto;
+  min-width:140px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+
+/* Comfortable hit targets. Kept off the board cells (Sudoku, word search,
+   Mahjong, playing cards) which must stay small to fit on a phone screen. */
+.nav-link,
+.filter-button,
+.quiet-button,
+.primary-button,
+.install-button,
+.back-button,
+.hint-button,
+.number-pad button,
+.game-action,
+.dialog-close,
+.pack-select,
+.stock-button,
+.profile-chip {
+  min-height:44px;
+}
+
+/* Direct manipulation: no tap highlight, no accidental double-tap zoom. */
+button,
+a,
+.nav-link,
+.filter-button,
+.game-card-button,
+.hint-button,
+.game-action,
+.pack-select,
+.stock-button,
+.profile-chip,
+.sudoku-cell,
+.word-cell,
+.mahjong-tile,
+.playing-card {
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* iOS PWA: respect the notch and home indicator. */
+@supports (padding:max(0px)) {
+  .topbar {
+    padding-left:max(0px, env(safe-area-inset-left));
+    padding-right:max(0px, env(safe-area-inset-right));
+  }
+  .main-content {
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .toast {
+    bottom:calc(22px + env(safe-area-inset-bottom));
+  }
+}
+
+/* On phones the sidebar becomes a fixed bottom navigation bar, which is
+   reachable with a thumb. Account and settings actions move into the
+   profile dialog so nothing is lost. */
+@media(max-width:760px) {
+  body {
+    padding-bottom:calc(66px + env(safe-area-inset-bottom));
+  }
+  .sidebar {
+    position:fixed;
+    inset:auto 0 0 0;
+    width:auto;
+    height:auto;
+    padding:6px 10px calc(6px + env(safe-area-inset-bottom));
+    border-right:0;
+    border-top:1px solid var(--line);
+    border-bottom:0;
+    flex-direction:row;
+    align-items:stretch;
+    justify-content:center;
+    background:var(--white);
+    box-shadow:0 -6px 18px #2534290f;
+    z-index:6;
+  }
+  .sidebar .brand,
+  .sidebar .sidebar-bottom {
+    display:none;
+  }
+  .mobile-brand {
+    display:flex;
+  }
+  .side-nav {
+    display:flex;
+    flex:1;
+    justify-content:space-around;
+    gap:0;
+    max-width:420px;
+    margin:0 auto;
+  }
+  .side-nav .nav-link {
+    flex:1;
+    width:auto;
+    height:auto;
+    min-height:54px;
+    flex-direction:column;
+    gap:2px;
+    padding:6px 4px;
+    font-size:10px;
+    text-align:center;
+    border-radius:8px;
+  }
+  .side-nav .nav-link>span:first-child {
+    width:auto;
+    font-size:20px;
+  }
+
+  /* Game actions sit in a sticky bar above the bottom navigation so the
+     hint button and the number pad stay in reach while playing. */
+  .game-layout {
+    grid-template-columns:1fr;
+  }
+  .game-aside {
+    position:sticky;
+    bottom:calc(66px + env(safe-area-inset-bottom));
+    z-index:5;
+    margin-top:14px;
+    padding:12px 0 6px;
+    background:var(--paper);
+    box-shadow:0 -10px 16px -10px #2534291f;
+  }
+  .game-aside:empty {
+    display:none;
+  }
+}
+
+@media(max-width:430px) {
+  .number-pad button {
+    min-height:48px;
+  }
+}
