@@ -20,6 +20,9 @@ Playfield is a browser-first PWA hub for short card and puzzle games. It is a st
 - `games/crossword.js`: clue data, editable rows, and completion checks.
 - `styles.css`: shared design system, responsive layouts, game pieces, and motion.
 - `sw.js`: versioned offline shell cache. Add every new module to `APP_FILES`.
+- `docs/ROADMAP.md`: the product and engineering roadmap. It holds the verified-bug list and the
+  full upgrade checklist (design, systems, architecture, input model, new games). Read it before
+  starting feature work; it is the source of truth for what to build next.
 
 ## 02. Game Module Contract
 
