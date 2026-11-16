@@ -21,8 +21,15 @@ Playfield is a browser-first PWA hub for short card and puzzle games. It is a st
 - `games/mahjong.js`: layered tile layout, blocked/open rules, matching, and hints.
 - `games/wordsearch.js`: difficulty configuration, word placement generation, state validation, and endpoint selection.
 - `games/crossword.js`: clue data, editable rows, and completion checks.
-- `styles.css`: shared design system, responsive layouts, game pieces, and motion.
-- `sw.js`: versioned offline shell cache. Add every new module to `APP_FILES`.
+- `styles.css`: shared design system, responsive layouts, game pieces, and motion. The phone
+  breakpoint (`max-width:760px`) turns the sidebar into a bottom navigation bar and pins game
+  actions above it; the `Touch ergonomics` section at the end of the file owns 44px hit targets,
+  safe-area insets, and tap-highlight resets. Keep board cells out of that min-height list so a
+  Sudoku grid still fits a phone.
+- `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`:
+  PWA identity. iOS ignores SVG for Add to Home Screen, so keep the PNGs in sync with the SVG.
+- `sw.js`: versioned offline shell cache. Add every new module and asset to `APP_FILES` and bump
+  `CACHE_NAME`.
 - `docs/ROADMAP.md`: the product and engineering roadmap. It holds the verified-bug list and the
   full upgrade checklist (design, systems, architecture, input model, new games). Read it before
   starting feature work; it is the source of truth for what to build next.
