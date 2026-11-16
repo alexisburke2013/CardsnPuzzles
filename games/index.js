@@ -8,9 +8,11 @@ import sudoku from './sudoku.js';
 import mahjong from './mahjong.js';
 import wordsearch from './wordsearch.js';
 import crossword from './crossword.js';
+import g2048 from './g2048.js';
+import memory from './memory.js';
 
 export const gameModules = Object.fromEntries(
-  [solitaire, sudoku, mahjong, wordsearch, crossword].map(game => [game.metadata.id, game])
+  [solitaire, sudoku, mahjong, wordsearch, crossword, g2048, memory].map(game => [game.metadata.id, game])
 );
 
 export const comingSoonGames = [

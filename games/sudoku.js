@@ -1,12 +1,15 @@
 /*
  * CUSTOMIZE SUDOKU HERE
- * - Change PUZZLE and SOLUTION together to ship a different starter board.
+ * - Difficulty levels and clue counts live in ./sudoku-generator.js.
  * - Edit render() to change the board controls or clues.
- * - Keep the module's state and event handlers together when adding pencil marks or difficulty.
+ * - Keep the module's state and event handlers together when adding features.
+ * Boards come from the seeded generator, so passing the same seed rebuilds the
+ * exact same puzzle (used by the daily challenge and by tests).
  */
-const PUZZLE = '100400009050080120009100406030507090500801004090030500305070010070902040900040078';
-const SOLUTION = '123456789456789123789123456234567891567891234891234567345678912678912345912345678';
 import { HINT_COST, hintButton } from './hints.js';
+import { generatePuzzle } from './sudoku-generator.js';
+
+export const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
 export const metadata = {
   id: 'sudoku',
@@ -17,12 +20,21 @@ export const metadata = {
   description: 'Fill every row, column, and 3 × 3 box with the numbers 1 through 9.'
 };
 
-export function createState() {
+export function createState({ difficulty = 'medium', seed } = {}) {
+  const level = DIFFICULTIES.includes(difficulty) ? difficulty : 'medium';
+  const { puzzle, solution } = generatePuzzle(level, seed);
+  const firstEmpty = puzzle.indexOf(0);
   return {
-    givens: [...PUZZLE].map(Number),
-    cells: [...PUZZLE].map(Number),
-    solution: [...SOLUTION].map(Number),
-    selected: PUZZLE.indexOf('0'),
+    difficulty: level,
+    seed: seed ?? null,
+    givens: [...puzzle],
+    cells: [...puzzle],
+    solution,
+    notes: Array.from({ length: 81 }, () => []),
+    selected: firstEmpty < 0 ? null : firstEmpty,
+    noteMode: false,
+    mistakes: 0,
+    hintsUsed: 0,
     finished: false
   };
 }
@@ -58,6 +70,7 @@ function findNextEmpty(state, afterIndex) {
 }
 
 export function render(state, { credits = 0 } = {}) {
+  const selectedValue = state.selected !== null ? state.cells[state.selected] : 0;
   const cells = state.cells.map((value, index) => {
     const row = Math.floor(index / 9);
     const column = index % 9;
@@ -68,16 +81,43 @@ export function render(state, { credits = 0 } = {}) {
       (Math.floor(Math.floor(state.selected / 9) / 3) === Math.floor(row / 3) &&
         Math.floor((state.selected % 9) / 3) === Math.floor(column / 3))
     );
+    const sameNumber = value && value === selectedValue;
     const invalid = value && hasConflict(state.cells, index, value);
-    const common = `sudoku-cell ${fixed ? 'is-fixed' : ''} ${state.selected === index ? 'is-selected' : related ? 'is-related' : ''} ${invalid ? 'is-wrong' : ''}`;
-    if (fixed) return `<span class="${common}" aria-label="Row ${row + 1}, column ${column + 1}, ${value}">${value}</span>`;
-    return `<input class="${common}" data-cell="${index}" aria-label="Row ${row + 1}, column ${column + 1}" inputmode="numeric" pattern="[1-9]" autocomplete="off" maxlength="1" value="${value || ''}">`;
+    const common = `sudoku-cell ${fixed ? 'is-fixed' : ''} ${state.selected === index ? 'is-selected' : related ? 'is-related' : ''} ${sameNumber ? 'is-same' : ''} ${invalid ? 'is-wrong' : ''}`;
+    const label = `Row ${row + 1}, column ${column + 1}${value ? `, ${value}` : ''}`;
+    const notes = !value && state.notes[index].length
+      ? `<span class="sudoku-notes" aria-hidden="true">${state.notes[index].map(note => `<i>${note}</i>`).join('')}</span>`
+      : '';
+    const content = fixed
+      ? `${value}`
+      : `<input class="sudoku-input" data-cell="${index}" aria-label="${label}" inputmode="numeric" pattern="[1-9]" autocomplete="off" maxlength="1" value="${value || ''}">${notes}`;
+    return `<div class="${common}" data-cell-index="${index}" role="gridcell">${content}</div>`;
   }).join('');
 
+  const pad = Array.from({ length: 9 }, (_, index) => `<button data-number="${index + 1}" aria-label="Enter ${index + 1}">${index + 1}</button>`).join('');
+  const difficulty = `<label class="difficulty-control"><span>Difficulty</span><select data-sudoku-difficulty aria-label="Sudoku difficulty">${DIFFICULTIES.map(level => `<option value="${level}" ${state.difficulty === level ? 'selected' : ''}>${level[0].toUpperCase()}${level.slice(1)}</option>`).join('')}</select></label>`;
+
   return {
-    board: `<div class="sudoku-controls"><div class="sudoku-board" role="group" aria-label="Sudoku board">${cells}</div><div class="number-pad" aria-label="Choose a number">${Array.from({ length: 9 }, (_, index) => `<button data-number="${index + 1}" aria-label="Enter ${index + 1}">${index + 1}</button>`).join('')}<button data-number="0" aria-label="Erase selected cell">⌫</button></div></div>`,
-    aside: `<p class="aside-label">SUDOKU · 9 × 9</p><h2 class="aside-title">Find your next number</h2><p class="aside-copy">Type straight into any empty square, or choose one and tap a number. Arrow keys move between squares; Backspace clears a square.</p>${hintButton('Reveal one square', { credits, finished: state.finished })}<div class="reward-line"><span>Solve the board</span><strong>+25 credits<br>+50 XP</strong></div>`
+    board: `<div class="sudoku-controls"><div class="sudoku-board" role="group" aria-label="Sudoku board">${cells}</div><div class="number-pad" aria-label="Choose a number">${pad}<button data-number="0" aria-label="Erase selected cell">⌫</button><button class="note-toggle ${state.noteMode ? 'is-active' : ''}" data-note-toggle aria-pressed="${state.noteMode}" aria-label="Toggle pencil notes">✎ Notes</button></div></div>`,
+    aside: `<p class="aside-label">SUDOKU · ${state.difficulty.toUpperCase()} · ${state.mistakes} MISTAKES</p><h2 class="aside-title">Find your next number</h2><p class="aside-copy">Type into any empty square, or choose one and tap a number. Turn on Notes to pencil in candidates. Matching numbers highlight together.</p>${difficulty}${hintButton('Reveal one square', { credits, finished: state.finished })}<div class="reward-line"><span>Solve the board</span><strong>+25 credits<br>+50 XP</strong></div>`
   };
+}
+
+/* Apply a digit (or erase with 0) to a cell, honoring note mode. Returns a
+   handler result so the hub knows whether to record an undo step. */
+function place(state, index, value) {
+  if (index === null || state.givens[index]) return { changed: false };
+  if (state.noteMode && value) {
+    const notes = state.notes[index];
+    state.notes[index] = notes.includes(value) ? notes.filter(note => note !== value) : [...notes, value].sort();
+    return { changed: true, undoable: true, focus: index };
+  }
+  state.notes[index] = [];
+  state.cells[index] = value;
+  if (value && value !== state.solution[index]) state.mistakes += 1;
+  const focus = value ? findNextEmpty(state, index) : index;
+  state.selected = focus;
+  return { changed: true, undoable: true, solved: isSolved(state), focus };
 }
 
 export function handleClick(target, state, helpers) {
@@ -88,17 +128,23 @@ export function handleClick(target, state, helpers) {
     if (index < 0) { helpers.toast('Every square is already correct.'); return true; }
     if (!helpers.spendCredits(HINT_COST)) return true;
     state.cells[index] = state.solution[index];
+    state.notes[index] = [];
+    state.hintsUsed += 1;
     state.selected = findNextEmpty(state, index);
-    return { changed: true, solved: isSolved(state), focus: state.selected };
+    return { changed: true, undoable: true, solved: isSolved(state), focus: state.selected };
+  }
+  if (target.closest('[data-note-toggle]')) {
+    state.noteMode = !state.noteMode;
+    return true;
   }
   const numberButton = target.closest('[data-number]');
   if (numberButton) {
-    if (state.selected !== null) return enterNumber(state, Number(numberButton.dataset.number), state.selected);
-    return true;
+    if (state.selected === null) return true;
+    return place(state, state.selected, Number(numberButton.dataset.number));
   }
-  const cell = target.closest('[data-cell]');
+  const cell = target.closest('[data-cell-index]');
   if (cell) {
-    state.selected = Number(cell.dataset.cell);
+    state.selected = Number(cell.dataset.cellIndex);
     return true;
   }
   return false;
@@ -108,10 +154,7 @@ export function handleInput(target, state) {
   if (!target.matches('[data-cell]')) return null;
   const index = Number(target.dataset.cell);
   const value = Number(target.value.replace(/[^1-9]/g, '').slice(-1));
-  state.cells[index] = value || 0;
-  const focus = value ? findNextEmpty(state, index) : index;
-  state.selected = focus;
-  return { changed: true, solved: isSolved(state), focus };
+  return place(state, index, value || 0);
 }
 
 export function handleKeyDown(event, state) {
@@ -127,13 +170,6 @@ export function handleKeyDown(event, state) {
   if (next < 0 || next > 80 || (Math.abs(step) === 1 && Math.floor(next / 9) !== Math.floor(index / 9))) return { changed: false };
   state.selected = next;
   return { changed: true, focus: next };
-}
-
-export function enterNumber(state, value, index = state.selected) {
-  if (index === null || state.givens[index]) return true;
-  state.cells[index] = value;
-  state.selected = value ? findNextEmpty(state, index) : index;
-  return true;
 }
 
 export function checkSolved(state) {

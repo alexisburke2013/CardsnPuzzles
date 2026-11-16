@@ -41,7 +41,7 @@
   appearance:none;
   -webkit-appearance:none;
 }
-.sudoku-cell:focus {
+.sudoku-cell:focus-within {
   z-index:2;
   outline:2px solid var(--coral);
   outline-offset:-2px;
@@ -1114,14 +1114,28 @@ button {
   background:#fffdf7;
 }
 .sudoku-cell {
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   min-width:0;
   padding:0;
-  border:0;
   border-right:1px solid #d4d7cb;
   border-bottom:1px solid #d4d7cb;
   background:transparent;
   color:var(--green);
   font:clamp(12px,2vw,18px) var(--mono);
+}
+.sudoku-input {
+  width:100%;
+  height:100%;
+  min-width:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  text-align:center;
 }
 .sudoku-cell:nth-child(3n) {
   border-right:2px solid #8e9a89;
@@ -1877,19 +1891,22 @@ a,
     font-size:20px;
   }
 
-  /* Game actions sit in a sticky bar above the bottom navigation so the
-     hint button and the number pad stay in reach while playing. */
+  /* Game actions sit below the board. The aside used to be a sticky bar, but
+     a tall sticky block pins to the viewport bottom and covers the last rows of
+     the board, so on phones it flows in order and the verbose copy is trimmed
+     to keep the board and the controls close together. */
   .game-layout {
     grid-template-columns:1fr;
   }
   .game-aside {
-    position:sticky;
-    bottom:calc(66px + env(safe-area-inset-bottom));
-    z-index:5;
+    position:static;
     margin-top:14px;
     padding:12px 0 6px;
-    background:var(--paper);
-    box-shadow:0 -10px 16px -10px #2534291f;
+    box-shadow:none;
+  }
+  .game-aside .aside-copy,
+  .game-aside .reward-line {
+    display:none;
   }
   .game-aside:empty {
     display:none;
@@ -1901,3 +1918,326 @@ a,
     min-height:48px;
   }
 }
+
+/* ==========================================================================
+   P1 additions: tools bar, timer, daily card, streaks, notes, new game UI
+   ========================================================================== */
+
+/* Play tools: timer + undo/redo, grouped next to the wallet chip. */
+.play-tools {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-left:auto;
+  margin-right:10px;
+}
+.timer-chip {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:var(--white);
+  color:var(--green);
+  font:12px var(--mono);
+}
+.timer-chip>span { color:var(--muted); }
+.tool-button {
+  width:38px;
+  height:38px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--white);
+  color:var(--green);
+  font-size:16px;
+  line-height:1;
+  cursor:pointer;
+}
+.tool-button:hover:not(:disabled) { border-color:var(--green); }
+.tool-button:disabled { opacity:.4; cursor:default; }
+
+/* Streak block in the stats row. */
+.streak-block .streak-icon { color:var(--coral); }
+
+/* Daily challenge banner. */
+.daily-card {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  flex-wrap:wrap;
+  margin:18px 0 4px;
+  padding:22px 24px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:linear-gradient(120deg,#fffefb,#f0eee1);
+  box-shadow:var(--shadow);
+}
+.daily-copy h2 { margin:4px 0 6px; font-family:var(--serif); font-weight:500; }
+.daily-copy p { margin:0; max-width:52ch; color:var(--muted); font-size:13px; }
+
+/* Sudoku pencil notes: a 3x3 mini grid inside the cell. */
+.sudoku-cell { position:relative; }
+.sudoku-notes {
+  position:absolute;
+  inset:1px;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  grid-template-rows:repeat(3,1fr);
+  pointer-events:none;
+}
+.sudoku-notes i {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font:7px/1 var(--mono);
+  font-style:normal;
+  color:#8a8f83;
+}
+.sudoku-cell.is-same { background:#e2efd6; }
+.sudoku-cell.is-selected.is-same { background:#f5df9e; }
+.note-toggle { font-size:11px; }
+.note-toggle.is-active {
+  background:var(--green);
+  color:var(--white);
+  border-color:var(--green);
+}
+
+/* Crossword: a real grid with blocks, across + down clue lists. */
+.crossword {
+  display:grid;
+  grid-template-columns:auto minmax(180px,1fr);
+  gap:24px;
+  align-items:start;
+}
+.crossword-grid {
+  display:grid;
+  grid-template-columns:repeat(var(--cross-size,5),44px);
+  grid-auto-rows:44px;
+  gap:3px;
+}
+.crossword-block {
+  background:#e7e6dd;
+  border-radius:2px;
+}
+.crossword-cell.is-selected {
+  background:#f5df9e;
+  border-color:#d9b64e;
+}
+.crossword-cell.is-related { background:#edf1e7; }
+.crossword-cell.is-solved {
+  background:#e1ebd9;
+  border-color:#a6b99d;
+  color:var(--green-dark);
+}
+.crossword-clues { display:grid; gap:16px; }
+.crossword-clue-group { display:grid; gap:6px; }
+.crossword-clue-heading {
+  margin:0;
+  font:11px var(--mono);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.crossword-clue {
+  display:grid;
+  grid-template-columns:22px 1fr;
+  gap:8px;
+  padding:4px 6px;
+  border:0;
+  border-radius:4px;
+  background:transparent;
+  text-align:left;
+  color:#62685e;
+  font-size:11px;
+  cursor:pointer;
+}
+.crossword-clue:hover { background:#f0eee3; }
+.crossword-clue b { color:var(--green); font:11px var(--mono); }
+.crossword-clue.is-solved { color:#9a9c8f; }
+.crossword-clue.is-solved span { text-decoration:line-through; }
+
+/* Word search drag preview. */
+.word-cell.is-preview {
+  background:#e6efdb;
+  border-color:#a6b99d;
+}
+
+/* Mahjong dead-end call to action. */
+.game-action.is-urgent {
+  background:var(--coral);
+  color:var(--white);
+  border-color:var(--coral);
+}
+
+/* Solitaire: waste stack shows the draw-three fan; stock shows a count. */
+.waste-stack {
+  position:relative;
+  display:flex;
+  min-width:46px;
+  min-height:64px;
+}
+.waste-card { position:relative; }
+.stock-button { position:relative; }
+.stock-count {
+  position:absolute;
+  right:-4px;
+  bottom:-4px;
+  padding:1px 4px;
+  border-radius:6px;
+  background:var(--green);
+  color:var(--white);
+  font:10px var(--mono);
+}
+
+@media(max-width:1050px) {
+  .crossword { grid-template-columns:1fr; }
+  .crossword-grid { grid-template-columns:repeat(var(--cross-size,5),38px); grid-auto-rows:38px; }
+  .crossword-cell { width:38px; height:38px; font-size:14px; }
+}
+@media(max-width:760px) {
+  .play-tools { margin-left:0; margin-right:0; order:3; width:100%; }
+  .timer-chip { flex:1; justify-content:center; }
+}
+
+/* Win / dead-end banner shown in the game aside. */
+.game-banner {
+  margin:0 0 12px;
+  padding:10px 12px;
+  border-radius:5px;
+  font-size:12px;
+  line-height:1.5;
+}
+.game-banner.is-win {
+  background:var(--green-pale);
+  border-left:2px solid var(--green);
+  color:var(--green-dark);
+}
+.game-banner.is-stuck {
+  background:#f7e6dd;
+  border-left:2px solid var(--coral);
+  color:#8a4a33;
+}
+.solitaire-board.is-complete .playing-card {
+  filter:saturate(1.1);
+}
+
+/* ==========================================================================
+   Dark mode. The whole look is token-driven, so a data-theme switch on <html>
+   only needs to repaint the palette; components inherit the rest.
+   ========================================================================== */
+:root[data-theme='dark'] {
+  color-scheme:dark;
+  --paper:#1b201d;
+  --white:#232a25;
+  --ink:#eef1ea;
+  --muted:#9aa79b;
+  --line:#37403a;
+  --green:#7fc0a0;
+  --green-dark:#a6d8bf;
+  --green-pale:#2c3b33;
+  --yellow:#f2c655;
+  --coral:#e08b6b;
+  --blue:#2b3a40;
+  --shadow:0 12px 32px #00000040;
+}
+:root[data-theme='dark'] body { background:var(--paper); color:var(--ink); }
+:root[data-theme='dark'] .sudoku-board,
+:root[data-theme='dark'] .crossword-grid { background:#232a25; border-color:#4a564d; }
+:root[data-theme='dark'] .sudoku-cell { border-color:#37403a; }
+:root[data-theme='dark'] .sudoku-cell.is-wrong { background:#4a2f28; color:#f0b9a6; }
+
+/* --- 2048 ---------------------------------------------------------------- */
+.board-2048 {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  width:min(100%,420px);
+  padding:8px;
+  border-radius:8px;
+  background:#bbada0;
+  touch-action:none;
+}
+.tile {
+  aspect-ratio:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:5px;
+  font:600 clamp(16px,4vw,26px) var(--sans);
+  color:#776e65;
+  background:#cdc1b4;
+  transition:transform .08s ease, background .12s ease;
+}
+.tile.empty { background:#cdc1b4; color:transparent; }
+.tile.t2 { background:#eee4da; }
+.tile.t4 { background:#ede0c8; }
+.tile.t8 { background:#f2b179; color:#f9f6f2; }
+.tile.t16 { background:#f59563; color:#f9f6f2; }
+.tile.t32 { background:#f67c5f; color:#f9f6f2; }
+.tile.t64 { background:#f65e3b; color:#f9f6f2; }
+.tile.t128 { background:#edcf72; color:#f9f6f2; }
+.tile.t256 { background:#edcc61; color:#f9f6f2; }
+.tile.t512 { background:#edc850; color:#f9f6f2; }
+.tile.t1024 { background:#edc53f; color:#f9f6f2; }
+.tile.t2048 { background:#edc22e; color:#f9f6f2; box-shadow:0 0 18px #edc22e99; }
+.tile.tbig { background:#3c3a32; color:#f9f6f2; }
+.pad-2048 {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:6px;
+  width:min(100%,220px);
+  margin-top:14px;
+}
+.pad-button {
+  padding:12px 0;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:var(--white);
+  color:var(--ink);
+  font-size:16px;
+  cursor:pointer;
+}
+.pad-button[data-2048-move='up'] { grid-column:2; }
+.pad-button[data-2048-move='left'] { grid-column:1; grid-row:2; }
+.pad-button[data-2048-move='down'] { grid-column:2; grid-row:2; }
+.pad-button[data-2048-move='right'] { grid-column:3; grid-row:2; }
+.score-line {
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  margin:12px 0;
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.score-line strong { font-size:20px; color:var(--ink); margin-right:12px; }
+
+/* --- Memory -------------------------------------------------------------- */
+.memory-board {
+  display:grid;
+  grid-template-columns:repeat(var(--memory-columns,4),1fr);
+  gap:8px;
+  width:min(100%,460px);
+}
+.memory-card {
+  aspect-ratio:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--green);
+  color:transparent;
+  font-size:clamp(20px,5vw,30px);
+  cursor:pointer;
+  transition:background .15s ease, color .15s ease, transform .12s ease;
+}
+.memory-card:hover { transform:translateY(-2px); }
+.memory-card.is-revealed { background:var(--white); color:var(--ink); }
+.memory-card.is-matched { background:var(--green-pale); color:var(--green-dark); cursor:default; }
+.memory-card.is-matched:hover { transform:none; }
+.memory-card.is-hinted { outline:2px solid var(--yellow); outline-offset:-2px; }

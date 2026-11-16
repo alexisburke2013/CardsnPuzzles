@@ -31,6 +31,8 @@
       </nav>
       <div class="sidebar-bottom">
         <div class="local-note"><span class="status-dot"></span><span>Saved on this device</span></div>
+        <button class="nav-link" id="themeButton" aria-pressed="false"><span aria-hidden="true">◐</span> <span id="themeLabel">Dark mode</span></button>
+        <button class="nav-link" id="soundButton" aria-pressed="false"><span aria-hidden="true">♪</span> <span id="soundLabel">Sound on</span></button>
         <button class="nav-link" id="backupButton"><span aria-hidden="true">⇧</span> Back up progress</button>
         <label class="nav-link import-link" for="importInput"><span aria-hidden="true">⇩</span> Restore backup</label>
         <input id="importInput" type="file" accept="application/json,.json" hidden>
@@ -81,13 +83,23 @@
             </div>
             <span class="art-spark spark-one">✳</span><span class="art-spark spark-two">✦</span>
           </div>
-          <span class="feature-index" id="featureIndex">01 / 05</span>
+          <span class="feature-index" id="featureIndex">01 / 07</span>
         </section>
 
         <section class="stats-row" aria-label="Player progress">
           <div class="stat-block"><span class="stat-icon coin-icon" aria-hidden="true">●</span><div><strong id="coinCount">15</strong><small>credits available</small></div></div>
           <div class="stat-block"><span class="stat-icon xp-icon" aria-hidden="true">✳</span><div><strong><span id="xpCount">0</span><small class="stat-unit"> / <span id="nextXp">100</span> XP</small></strong><small>to your next level</small></div></div>
+          <div class="stat-block streak-block"><span class="stat-icon streak-icon" aria-hidden="true">✦</span><div><strong id="streakCount">0</strong><small>day streak</small></div></div>
           <div class="level-progress" aria-label="Progress to next level"><span id="levelProgress"></span></div>
+        </section>
+
+        <section class="daily-card" aria-labelledby="dailyTitle">
+          <div class="daily-copy">
+            <p class="eyebrow">TODAY'S CHALLENGE</p>
+            <h2 id="dailyTitle">One board a day</h2>
+            <p id="dailyStatus">Solve the daily Sudoku to keep your streak alive. Everyone gets the same board.</p>
+          </div>
+          <button class="primary-button" id="dailyButton">Play daily Sudoku <span aria-hidden="true">↗</span></button>
         </section>
 
         <section class="library-section" id="games">
@@ -105,6 +117,11 @@
       <section class="play-view" id="playView" hidden>
         <div class="play-topline">
           <button class="back-button" id="backButton"><span aria-hidden="true">←</span> Game shelf</button>
+          <div class="play-tools">
+            <span class="timer-chip" id="gameTimer" aria-label="Elapsed time"><span aria-hidden="true">◔</span><strong>0:00</strong></span>
+            <button class="tool-button" id="undoButton" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><span aria-hidden="true">↶</span></button>
+            <button class="tool-button" id="redoButton" title="Redo (Ctrl+Y)" aria-label="Redo" disabled><span aria-hidden="true">↷</span></button>
+          </div>
           <span class="wallet-chip" aria-label="Wallet balance"><span aria-hidden="true">●</span><strong id="gameCredits">15</strong><small>credits</small></span>
           <span class="save-status"><span class="status-dot"></span> Progress saved</span>
         </div>

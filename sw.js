@@ -1,6 +1,8 @@
-const CACHE_NAME = 'playfield-shell-v5';
+const CACHE_NAME = 'playfield-shell-v6';
 const APP_FILES = [
-  './', './index.html', './styles.css', './app.js', './wallet.js', './store.js', './rng.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
+  './', './index.html', './styles.css', './app.js', './wallet.js', './store.js', './rng.js',
+  './history.js', './stats.js', './economy.js', './daily.js', './feedback.js',
+  './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   './fonts/fonts.css',
   './fonts/dm-sans-400-latin.woff2', './fonts/dm-sans-400-latin-ext.woff2',
   './fonts/dm-mono-400-latin.woff2', './fonts/dm-mono-400-latin-ext.woff2',
@@ -8,8 +10,9 @@ const APP_FILES = [
   './fonts/playfair-display-500-latin.woff2', './fonts/playfair-display-500-latin-ext.woff2',
   './fonts/playfair-display-500-italic-latin.woff2', './fonts/playfair-display-500-italic-latin-ext.woff2',
   './games/hints.js',
-  './games/index.js', './games/solitaire.js', './games/sudoku.js', './games/mahjong.js',
-  './games/wordsearch.js', './games/crossword.js'
+  './games/index.js', './games/solitaire.js', './games/sudoku.js', './games/sudoku-generator.js',
+  './games/mahjong.js', './games/wordsearch.js', './games/crossword.js', './games/crossword-data.js',
+  './games/g2048.js', './games/memory.js'
 ];
 
 self.addEventListener('install', event => {

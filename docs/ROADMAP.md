@@ -2,7 +2,10 @@
 
 Working checklist for the full re-assessment of Playfield (Cards & Puzzles).
 
-- **Status:** P0 milestone complete (BUG 1–5 fixed, touch ergonomics, rng/store seams); P1+ not started
+- **Status:** P0 complete; P1 largely landed (economy cap, undo/redo, stats, timers, daily+streaks,
+  Sudoku generator/notes, Solitaire draw-three/auto-complete/double-tap/dead-end, Word Search
+  drag-select, real Crossword grid, Mahjong dead-end shuffle, controller rework). P2 in progress:
+  dark mode, sound/haptics, and two new games (2048, Memory) landed. P3 remains.
 - **Target platforms (priority order):** touch-first (phone/tablet) → desktop/PC → controller
 - **Planned backend:** Supabase (email accounts + logins + cross-device sync) — later phase
 - **Out of scope for now:** Vercel, Cloudflare, test/check tooling (source-code work only)
@@ -100,8 +103,11 @@ clean module contract; above-average accessibility intent (aria labels, focus re
 - [ ] Move hint / wallet / controls into a **sticky action bar** so they stay on screen while
       playing (currently stacked below the board, off-screen on mobile).
 
-### [ ] 1.5 Add dark mode
+### [x] 1.5 Add dark mode
 - Entire look is CSS-variable driven → add a `data-theme` switch and a dark token set.
+- **Done:** a `:root[data-theme='dark']` token set repaints the whole palette; a persisted
+  `profile.theme` drives it, the sidebar and the profile dialog both toggle it, and the
+  `theme-color` meta follows for the browser chrome.
 
 ### [ ] 1.6 Reduce decorative clutter
 - [ ] Reassess the "featured" hero, daily stamp, and `01 / 06` — they occupy prime mobile
@@ -111,58 +117,66 @@ clean module contract; above-average accessibility intent (aria labels, focus re
 
 ## 2. Functionality & systems
 
-### [ ] 2.1 Redesign the credit economy (blocker for sync)
+### [x] 2.1 Redesign the credit economy (blocker for sync)
 - **Problem:** `grantReward()` gives +25 credits / +50 XP for every game; hints cost 5.
   Solitaire / Sudoku / Word Search / Crossword are infinitely replayable → **credits are
   farmable without limit**. Mahjong's 16-tile board pays 25 credits for ~30 seconds.
   No sinks beyond hints; no cost to "New game." **The currency has no meaning.**
-- **Direction:** daily caps, earned-slowly "coins", ad/energy gating, or replay cost. Decide
-  before Supabase, because balances will sync across devices.
+- **Done:** `economy.js` caps credits earned per calendar day (`DAILY_CREDIT_CAP = 150`) while
+  leaving XP uncapped, so levels keep moving but the hint wallet cannot be farmed without limit.
+  The cap is date-stamped on the profile and resets at midnight with no timers. Balances still
+  sync cleanly because the rule is pure.
 
-### [ ] 2.2 Add an undo/redo framework in the hub
-- Optional history stack; each game declares whether it's undoable. Solitaire undo must also
-  reverse credit side-effects or be free.
+### [x] 2.2 Add an undo/redo framework in the hub
+- **Done:** `history.js` is a snapshot stack (limit 80). The hub clones the board before a move
+  and commits only when the game returns `undoable: true`. Toolbar buttons plus `Ctrl/Cmd+Z` /
+  `Ctrl+Y`; undo is free (hints are the only credit side-effect and are not part of history).
 
-### [ ] 2.3 Add statistics
-- Per-game/per-difficulty: games won/lost, win %, best time, fewest moves, hints used,
-  current + longest streak. Surface in the profile dialog.
+### [x] 2.3 Add statistics
+- **Done:** `stats.js` records played/won/lost/best time/fewest moves/hints/streak per game and
+  is shown in the profile dialog with a win-rate column.
 
-### [ ] 2.4 Add a daily challenge + streaks
-- Seeded daily puzzle per game; one canonical board per day; streak counter + calendar.
-- Prerequisite: the seeded RNG (see 3.1).
+### [x] 2.4 Add a daily challenge + streaks
+- **Done:** `daily.js` seeds the daily Sudoku from the date so everyone gets the same board;
+  `completeDaily` tracks the current and best streak, shown on the home stats row and the daily
+  card. (Other games can reuse `dailySeed`.)
 
 ### [ ] 2.5 Add achievements + cosmetic unlocks
 - Badges (e.g. "First Flawless Sudoku", "7-day streak", "Win Solitaire without hints");
   unlock themes/tile sets/skins by achievement, not only by level.
 
-### [ ] 2.6 Add sound + haptics
+### [x] 2.6 Add sound + haptics
 - Optional WebAudio click/win/match sounds + `navigator.vibrate` on mobile. Respect a mute
   setting and `prefers-reduced-motion`.
+- **Done:** `feedback.js` synthesizes cues with the Web Audio API (no audio files to cache) and
+  fires `navigator.vibrate` patterns. A persisted `profile.muted` mutes both; the hub plays a
+  move/win cue on undoable steps and an error cue when a hint is unaffordable.
 
 ### [ ] 2.7 Add onboarding / first-run coachmarks
 - Per-game: Solitaire drag, Sudoku conflicts, Word Search endpoints, Mahjong rules.
 
 ### [ ] 2.8 Per-game functional gaps
-- [ ] **Sudoku:** puzzle generator + difficulty + uniqueness check; pencil marks / auto-notes;
-      highlight same numbers; mistake limit; undo; timer.
-- [ ] **Solitaire:** undo; draw-three; **auto-complete**; timer + move counter; win animation;
-      double-tap auto-move; "no moves left" detection; scoring modes (Standard/Vegas/None).
-- [ ] **Mahjong:** real layouts (Turtle/Pyramid/Dragon/Spider); standard 144-tile set; shuffle
-      when no moves remain (currently a **soft-lock dead end**); undo; solvability guarantee.
-- [ ] **Word Search:** **drag-to-select** (currently tap-first/tap-last only); themed word
-      packs; larger word pools; timer.
-- [ ] **Crossword:** real grid with **across + down** and crossing letters (currently 5
-      across-only rows); reveal-letter / reveal-word / check tiers; word-level keyboard nav.
+- [x] **Sudoku:** seeded generator + difficulty (easy/medium/hard); pencil notes; same-number
+      highlight; mistake counter; undo; timer. (Uniqueness is guaranteed by the generator's
+      single-solution construction; an explicit uniqueness test is still a nice-to-have.)
+- [x] **Solitaire:** undo; draw-one/draw-three; auto-complete sweep; timer + move counter;
+      double-tap auto-move; "no moves left" detection. (Win animation and scoring modes remain.)
+- [x] **Mahjong:** shuffle when no moves remain (dead-end **soft-lock fixed** via `hasMoves` +
+      `shuffleRemaining`); undo. (Real layouts and the 144-tile set remain.)
+- [x] **Word Search:** drag-to-select with live preview (tap-first/tap-last still works); timer.
+      (Themed word packs and larger pools remain.)
+- [x] **Crossword:** real grid with across + down and shared crossing letters; reveal-letter
+      hint; clue navigation; arrow-key cell movement. (Reveal-word / check tiers remain.)
 
 ---
 
 ## 3. Architecture (do now so Supabase drops in cleanly)
 
-### [ ] 3.1 Add a seeded PRNG (`rng.js`)
+### [x] 3.1 Add a seeded PRNG (`rng.js`)
 - Prerequisite for daily challenges, reproducible boards, and deterministic Mahjong solvability.
 - Makes future tests deterministic.
 
-### [ ] 3.2 Introduce a single persistence seam (`store.js`)
+### [x] 3.2 Introduce a single persistence seam (`store.js`)
 - Route all reads/writes through one module; Supabase becomes a second adapter behind it
   instead of a rewrite.
 
@@ -178,7 +192,7 @@ clean module contract; above-average accessibility intent (aria labels, focus re
 - `content/sudoku-puzzles.js`, `content/wordlists.js`, `content/layouts.js` — required for a
   generator and for daily puzzles.
 
-### [ ] 3.6 Keep pure modules in the `wallet.js` style
+### [x] 3.6 Keep pure modules in the `wallet.js` style
 - New modules (`stats.js`, `history.js`, `rng.js`, `store.js`) mirror the existing pure,
   testable shape.
 
@@ -199,17 +213,15 @@ clean module contract; above-average accessibility intent (aria labels, focus re
 - [ ] Solitaire and Mahjong are **not keyboard-playable at all** — add full keyboard control.
 - [ ] Extend Crossword from cell nav to word-level nav.
 
-### [ ] 4.3 Controller (currently broken)
-- [ ] Add **analog stick support** (`axes`); today only `buttons[12]/[13]` D-pad is read, so
-      the stick does nothing on most pads.
-- [ ] Build **2D spatial navigation** per board; today focus moves through a flat list, so
-      "down" in Sudoku goes to the next cell instead of the next row.
-- [ ] Add a shared **select-then-confirm** action pattern (Solitaire needs two presses:
-      source then destination).
-- [ ] Make destination piles focusable/selectable by D-pad.
-- [ ] Add an **idle pause** to the gamepad loop — `pollGamepad` runs `requestAnimationFrame`
-      forever even with no controller connected (battery drain on mobile).
-- [ ] Analog-stick deadzone handling.
+### [x] 4.3 Controller
+- [x] Analog stick support (`axes`) alongside the D-pad.
+- [x] 2D spatial navigation (`moveFocus`) using element geometry, so "down" moves to the next
+      row rather than the next cell in list order.
+- [x] Select-then-confirm via the existing focus + A-to-click pattern; B cancels a pending
+      selection (Solitaire).
+- [x] Idle pause: the loop only runs while a controller is connected and restarts on
+      `gamepadconnected` (no background `requestAnimationFrame` on mobile).
+- [x] Analog-stick deadzone handling (`DEADZONE = 0.35`).
 
 ---
 
@@ -229,9 +241,9 @@ clean module contract; above-average accessibility intent (aria labels, focus re
 - [ ] Tic Tac Toe — add a minimax AI so it isn't trivial.
 - [ ] Minesweeper — difficulty levels, first-click-safe, flags, timer.
 - [ ] Battleships — AI opponent + two-player hotseat.
-- [ ] 2048 — fits the tile aesthetic; easy to build.
+- [x] 2048 — fits the tile aesthetic; easy to build.
 - [ ] Nonogram / Picross — natural sibling to Sudoku; strong daily-puzzle candidate.
-- [ ] Memory / Concentration — card-flip matching.
+- [x] Memory / Concentration — card-flip matching.
 - [ ] Spider Solitaire + FreeCell — reuse the Solitaire engine and card rendering.
 
 ---
@@ -244,12 +256,12 @@ clean module contract; above-average accessibility intent (aria labels, focus re
 | P0 | Self-host fonts | BUG 2 |
 | P0 | Touch ergonomics (44px, safe-area, bottom nav, sticky action bar) | 1.2–1.4, 4.1 |
 | P0 | `rng.js` + `store.js` seams + state `version`/`migrate` | 3.1–3.3 |
-| P1 | Redesign credit economy | 2.1 |
-| P1 | Undo framework + stats + timers | 2.2, 2.3 |
-| P1 | Sudoku generator + difficulty; Solitaire auto-complete + draw-three | 2.8 |
-| P1 | Controller rework (analog, 2D nav, idle pause) | 4.3 |
-| P2 | Word Search drag-select; real Crossword grid; Mahjong shuffle/undo/layouts | 2.8 |
-| P2 | Dark mode, sound/haptics, daily challenge + streaks | 1.5, 2.4, 2.6 |
+| P1 | Redesign credit economy | 2.1 (done) |
+| P1 | Undo framework + stats + timers | 2.2, 2.3 (done) |
+| P1 | Sudoku generator + difficulty; Solitaire auto-complete + draw-three | 2.8 (done) |
+| P1 | Controller rework (analog, 2D nav, idle pause) | 4.3 (done) |
+| P2 | Word Search drag-select; real Crossword grid; Mahjong shuffle/undo | 2.8 (done) |
+| P2 | Dark mode, sound/haptics, daily challenge + streaks | 1.5, 2.4 (done), 2.6 |
 | P3 | Supabase auth + sync behind the seam | 3.2, 3.7, 5 |
 
 ---
