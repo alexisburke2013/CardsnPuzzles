@@ -11,11 +11,13 @@ Playfield is a browser-first home for short card and puzzle games. The shared hu
 - Mini crossword: a real grid with across and down clues that share crossing letters, plus a reveal-letter hint.
 - 2048: a seeded tile-merge puzzle with arrow keys, an on-screen pad, and board swipe on touch; reaching 2048 marks the win but you can keep playing.
 - Memory: a seeded card-flip matching game with Easy/Medium/Hard pair counts; a matched pair is one undoable move.
-- Tic Tac Toe, Battleships, and Minesweeper appear as coming soon.
+- Tic Tac Toe: you are X and move first against a computer with Easy, Medium, and Impossible (perfect minimax) opponents; a hint suggests the strongest square.
+- Minesweeper: first-tap-safe minefields in Easy/Medium/Hard sizes, with flood reveal, a Flag mode, and long-press or right-click to flag.
+- Battleships appears as coming soon.
 
-New profiles start with 15 credits. Completing a game awards 25 credits and 50 XP; a hint in any starter game costs 5 credits from the same wallet. Credits earned per day are capped so the wallet cannot be farmed without limit, while XP stays uncapped so levels keep moving. Levels unlock player titles and four equippable Solitaire card backs.
+New profiles start with 15 credits. Completing a game awards 25 credits and 50 XP; a hint in any game costs 5 credits from the same wallet. Credits earned per day are capped so the wallet cannot be farmed without limit, while XP stays uncapped so levels keep moving. Levels unlock player titles and four equippable Solitaire card backs.
 
-Each game has a timer, undo/redo (toolbar or `Ctrl/Cmd+Z` / `Ctrl+Y`), and per-game statistics shown in the profile dialog. A seeded **daily Sudoku** gives everyone the same board each day and tracks a day streak. A **dark mode** toggle and a **sound/haptics** toggle are saved with the profile. Progress, statistics, streaks, and in-progress boards are stored in this browser on this device. Use **Back up progress** to download a JSON backup, or **Restore backup** to import one. Clearing browser storage can erase the local save, so keep a backup if the data matters.
+Each game has a timer, undo/redo (toolbar or `Ctrl/Cmd+Z` / `Ctrl+Y`), and per-game statistics shown in the profile dialog. A seeded **daily Sudoku** gives everyone the same board each day and tracks a day streak. A **dark mode** toggle and a **sound/haptics** toggle are saved with the profile. Ten **badges** unlock as you play and are listed in the profile dialog. Progress, statistics, streaks, and in-progress boards are stored in this browser on this device. Use **Back up progress** to download a JSON backup, or **Restore backup** to import one. Clearing browser storage can erase the local save, so keep a backup if the data matters.
 
 ## Customize and test
 

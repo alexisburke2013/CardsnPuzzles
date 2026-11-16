@@ -6,6 +6,7 @@ import { createHistory, commit as commitHistory, reset as resetHistory, undo as 
 import { normalizeStats, recordResult, winRate } from './stats.js';
 import { dailySeed, normalizeDaily, isCompletedToday, completeDaily, currentStreak } from './daily.js';
 import { feedback, setMuted, isMuted } from './feedback.js';
+import { ACHIEVEMENTS, evaluate as evaluateAchievements, byId as achievementById, totalPlayed } from './achievements.js';
 
 const gameCatalog = [...Object.values(gameModules).map(game => game.metadata), ...comingSoonGames];
 const playableGames = Object.keys(gameModules);
@@ -23,7 +24,7 @@ const cardPacks = [
   { id: 'bluebird', name: 'Bluebird', level: 7 }
 ];
 const defaultData = {
-  profile: { xp: 0, credits: 15, completed: [], gamesPlayed: 0, cardBack: 0, theme: 'light', muted: false },
+  profile: { xp: 0, credits: 15, completed: [], gamesPlayed: 0, cardBack: 0, theme: 'light', muted: false, achievements: [], lastWin: null },
   recent: 'sudoku',
   games: {},
   stats: {},
@@ -42,7 +43,9 @@ const gameSchema = {
   wordsearch: { version: 1, validate: state => gameModules.wordsearch.isValidState(state), restore: state => ({ ...state, drag: null, preview: [] }) },
   crossword: { version: 2, validate: state => Array.isArray(state.letters) && Array.isArray(state.entries), restore: state => ({ ...state, selected: null }) },
   g2048: { version: 1, validate: state => Array.isArray(state.cells) && state.cells.length === 16, restore: state => ({ ...state, swipe: null }) },
-  memory: { version: 1, validate: state => Array.isArray(state.deck) && state.deck.length % 2 === 0, restore: state => ({ ...state, flipped: [], lock: false, hint: null }) }
+  memory: { version: 1, validate: state => Array.isArray(state.deck) && state.deck.length % 2 === 0, restore: state => ({ ...state, flipped: [], lock: false, hint: null }) },
+  tictactoe: { version: 1, validate: state => Array.isArray(state.board) && state.board.length === 9, restore: state => ({ ...state, hint: null }) },
+  minesweeper: { version: 1, validate: state => Array.isArray(state.cells) && state.cells.every(cell => typeof cell === 'object'), restore: state => ({ ...state, press: null, suppressClick: false, hint: null }) }
 };
 
 let data = loadData();
@@ -236,7 +239,9 @@ function grantReward(id) {
   data.profile.gamesPlayed += 1;
   if (!data.profile.completed.includes(id)) data.profile.completed.push(id);
   recordResult(data.stats, id, { outcome: 'won', time: elapsed, moves, hints });
+  data.profile.lastWin = { id, hints, time: elapsed };
   const daily = activeGame.daily ? completeDaily(data.daily) : null;
+  const unlocked = unlockAchievements();
   saveGameState();
   flushSave();
   stopTimer();
@@ -249,6 +254,26 @@ function grantReward(id) {
     showToast('Puzzle complete! +25 credits · +50 XP');
   }
   if (daily) { showToast(`Daily complete — ${daily}-day streak!`); }
+  if (unlocked.length) {
+    const names = unlocked.map(achievementById).map(a => a.title).join(', ');
+    setTimeout(() => showToast(`🏆 Achievement unlocked: ${names}`), daily ? 2700 : 100);
+  }
+}
+
+/* Check the badge rules against the freshly recorded result and persist any new
+   unlocks. Returns the ids unlocked by this call so the caller can announce them. */
+function unlockAchievements() {
+  const fresh = evaluateAchievements({
+    profile: data.profile,
+    stats: data.stats,
+    streak: currentStreak(data.daily),
+    level: currentLevel(),
+    totalPlayed: totalPlayed(data.stats),
+    playableGames,
+    lastWin: data.profile.lastWin ?? null
+  });
+  if (fresh.length) data.profile.achievements = [...(data.profile.achievements ?? []), ...fresh];
+  return fresh;
 }
 
 function gameHelpers() {
@@ -381,7 +406,7 @@ function dispatchGameEvent(handler, event) {
   const { id, state } = activeGame;
   const game = gameModules[id];
   if (typeof game[handler] !== 'function') return;
-  const snapshotHandlers = ['handleClick', 'handleInput', 'handleKeyDown', 'handlePointerUp'];
+  const snapshotHandlers = ['handleClick', 'handleInput', 'handleKeyDown', 'handlePointerUp', 'handleContextMenu'];
   const before = snapshotHandlers.includes(handler) ? snapshot() : null;
   const result = handler === 'handleClick' || handler === 'handleInput'
     ? game[handler](event.target, state, gameHelpers())
@@ -485,6 +510,26 @@ document.addEventListener('change', event => {
     renderActiveGame();
     resetGameHistory();
     showToast(`${memorySelect.value[0].toUpperCase()}${memorySelect.value.slice(1)} Memory ready.`);
+    return;
+  }
+  const tttSelect = event.target.closest('[data-ttt-difficulty]');
+  if (tttSelect && activeGame?.id === 'tictactoe') {
+    const hasProgress = activeGame.state.moves > 0 && !activeGame.state.finished;
+    if (hasProgress && !confirm('Changing the opponent starts a new round. Continue?')) { renderActiveGame(); return; }
+    activeGame.state = newGameState('tictactoe', { difficulty: tttSelect.value });
+    renderActiveGame();
+    resetGameHistory();
+    showToast(`${tttSelect.value[0].toUpperCase()}${tttSelect.value.slice(1)} opponent ready.`);
+    return;
+  }
+  const mineSelect = event.target.closest('[data-mine-difficulty]');
+  if (mineSelect && activeGame?.id === 'minesweeper') {
+    const hasProgress = activeGame.state.moves > 0 && !activeGame.state.finished;
+    if (hasProgress && !confirm('Changing difficulty starts a new Minesweeper game. Continue?')) { renderActiveGame(); return; }
+    activeGame.state = newGameState('minesweeper', { difficulty: mineSelect.value });
+    renderActiveGame();
+    resetGameHistory();
+    showToast(`${mineSelect.value[0].toUpperCase()}${mineSelect.value.slice(1)} Minesweeper ready.`);
   }
 });
 
@@ -493,6 +538,7 @@ gameBoard.addEventListener('pointerdown', event => dispatchGameEvent('handlePoin
 window.addEventListener('pointermove', event => dispatchGameEvent('handlePointerMove', event));
 window.addEventListener('pointerup', event => dispatchGameEvent('handlePointerUp', event));
 window.addEventListener('pointercancel', event => dispatchGameEvent('handlePointerCancel', event));
+gameBoard.addEventListener('contextmenu', event => dispatchGameEvent('handleContextMenu', event));
 
 function closeGame() {
   stopTimer();
@@ -512,6 +558,8 @@ document.querySelector('#newGameButton').addEventListener('click', () => {
   const options = id === 'wordsearch' ? { difficulty: activeGame.state.difficulty }
     : id === 'sudoku' ? { difficulty: activeGame.state.difficulty }
     : id === 'memory' ? { difficulty: activeGame.state.difficulty }
+    : id === 'tictactoe' ? { difficulty: activeGame.state.difficulty }
+    : id === 'minesweeper' ? { difficulty: activeGame.state.difficulty }
     : {};
   if (id && confirm('Start a fresh game? Your current board will be replaced.')) openGame(id, true, options);
 });
@@ -541,7 +589,12 @@ document.querySelector('#profileButton').addEventListener('click', () => {
     const best = entry.bestTime !== null ? ` · best ${formatClock(entry.bestTime)}` : '';
     return `<div class="collection-item"><span>${gameModules[id].metadata.title}<small>${entry.won} won of ${entry.played}${best}${entry.streak ? ` · ${entry.streak} streak` : ''}</small></span><small>${winRate(entry)}%</small></div>`;
   }).join('');
-  showDialog('YOUR PLAYFIELD PROFILE', 'A collection of little wins', `<div class="dialog-stats"><div class="dialog-stat"><strong>Level ${currentLevel()}</strong><small>${playerTitle()}</small></div><div class="dialog-stat"><strong>${data.profile.credits}</strong><small>credits available</small></div><div class="dialog-stat"><strong>${data.profile.xp % 100}/100</strong><small>XP to next level</small></div><div class="dialog-stat"><strong>${currentStreak(data.daily)}</strong><small>day streak</small></div></div><h3 class="collection-heading">Statistics</h3><div class="collection-list">${statsRows}</div><p>Titles unlock as you level up. Next title: ${nextTitle}.</p><div class="dialog-actions"><button class="quiet-button" data-dialog-action="theme">${data.profile.theme === 'dark' ? 'Light mode' : 'Dark mode'}</button><button class="quiet-button" data-dialog-action="sound">${data.profile.muted ? 'Sound off' : 'Sound on'}</button><button class="quiet-button" data-dialog-action="collection">My collection</button><button class="quiet-button" data-dialog-action="backup">Back up progress</button><label class="quiet-button" for="importInput">Restore backup</label><button class="quiet-button" data-dialog-action="about">About &amp; controls</button></div>`);
+  const unlockedIds = data.profile.achievements ?? [];
+  const badgeRows = ACHIEVEMENTS.map(achievement => {
+    const unlocked = unlockedIds.includes(achievement.id);
+    return `<div class="collection-item badge-item ${unlocked ? 'is-unlocked' : ''}"><span>${unlocked ? '🏆' : '·'} ${achievement.title}<small>${achievement.description}</small></span><small>${unlocked ? 'Unlocked' : 'Locked'}</small></div>`;
+  }).join('');
+  showDialog('YOUR PLAYFIELD PROFILE', 'A collection of little wins', `<div class="dialog-stats"><div class="dialog-stat"><strong>Level ${currentLevel()}</strong><small>${playerTitle()}</small></div><div class="dialog-stat"><strong>${data.profile.credits}</strong><small>credits available</small></div><div class="dialog-stat"><strong>${data.profile.xp % 100}/100</strong><small>XP to next level</small></div><div class="dialog-stat"><strong>${currentStreak(data.daily)}</strong><small>day streak</small></div></div><h3 class="collection-heading">Statistics</h3><div class="collection-list">${statsRows}</div><h3 class="collection-heading">Badges · ${unlockedIds.length}/${ACHIEVEMENTS.length}</h3><div class="collection-list">${badgeRows}</div><p>Titles unlock as you level up. Next title: ${nextTitle}.</p><div class="dialog-actions"><button class="quiet-button" data-dialog-action="theme">${data.profile.theme === 'dark' ? 'Light mode' : 'Dark mode'}</button><button class="quiet-button" data-dialog-action="sound">${data.profile.muted ? 'Sound off' : 'Sound on'}</button><button class="quiet-button" data-dialog-action="collection">My collection</button><button class="quiet-button" data-dialog-action="backup">Back up progress</button><label class="quiet-button" for="importInput">Restore backup</label><button class="quiet-button" data-dialog-action="about">About &amp; controls</button></div>`);
 });
 
 function showCollection() {

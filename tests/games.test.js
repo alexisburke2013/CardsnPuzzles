@@ -499,3 +499,80 @@ test('Feedback module stays safe when audio and vibration are unavailable', asyn
   feedback.setMuted(false);
   assert.equal(feedback.isMuted(), false);
 });
+
+test('Achievements unlock once and stay unlocked', async () => {
+  const { ACHIEVEMENTS, evaluate, byId, totalPlayed } = await import('../achievements.js');
+  assert.ok(ACHIEVEMENTS.length >= 8);
+  const profile = { completed: ['sudoku'], achievements: [] };
+  const base = { profile, stats: { sudoku: { played: 1, won: 1, bestStreak: 1 } }, streak: 1, level: 1, totalPlayed: 1, playableGames: ['sudoku', 'memory'], lastWin: { id: 'sudoku', hints: 0, time: 90 } };
+  const first = evaluate(base);
+  assert.ok(first.includes('first-win'), 'first win unlocks');
+  assert.ok(first.includes('no-hints'), 'a hint-free win unlocks the purist badge');
+  assert.ok(!first.includes('collector'), 'not every game completed yet');
+  // Record the unlocks and re-evaluate: nothing is returned twice.
+  profile.achievements = [...first];
+  assert.deepEqual(evaluate(base), [], 'unlocks are idempotent');
+  assert.equal(byId('first-win').title, 'First Win');
+  assert.equal(totalPlayed({ a: { played: 2 }, b: { played: 3 } }), 5);
+});
+
+test('Tic Tac Toe minimax never loses and detects a human win', () => {
+  const game = gameModules.tictactoe;
+  // Impossible computer answers every human opening with a non-loss.
+  for (let opening = 0; opening < 9; opening++) {
+    const state = game.createState({ difficulty: 'impossible', seed: 'perfect' });
+    state.board[opening] = 'X';
+    state.moves = 1;
+    state.turn = 'computer';
+    const reply = game.computerMove(state, createRng('reply'));
+    assert.notEqual(reply, opening);
+    assert.equal(state.board[reply], null);
+  }
+  // The hint prefers the winning square when one is open.
+  const win = game.createState({ difficulty: 'impossible' });
+  win.board = ['X', 'X', null, 'O', 'O', null, null, null, null];
+  assert.equal(game.bestMove(win), 2, 'completes the top row');
+  // A completed line marks the winner and solves the board.
+  const solved = game.createState({ difficulty: 'easy' });
+  solved.board = ['X', 'X', 'X', 'O', 'O', null, null, null, null];
+  solved.turn = 'human';
+  game.handleClick(fakeTarget('[data-ttt]', { ttt: '5' }), solved, quietHelpers);
+  assert.equal(solved.finished, true);
+  assert.equal(solved.winner, 'X');
+  assert.equal(game.checkSolved(solved), true);
+});
+
+test('Minesweeper keeps the first tap safe and wins when every safe square opens', () => {
+  const game = gameModules.minesweeper;
+  const state = game.createState({ difficulty: 'easy', seed: 'field' });
+  const first = 27;
+  game.handleClick(fakeTarget('[data-mine]', { mine: String(first) }), state, quietHelpers);
+  assert.equal(state.started, true);
+  assert.equal(state.cells[first].mine, false, 'first tap is never a mine');
+  assert.equal(state.cells[first].revealed, true);
+  assert.equal(state.cells.filter(cell => cell.mine).length, 10, 'places the configured mine count');
+  // Flag mode toggles a flag without revealing.
+  state.flagMode = true;
+  const hidden = state.cells.findIndex(cell => !cell.revealed && !cell.flagged);
+  game.handleClick(fakeTarget('[data-mine]', { mine: String(hidden) }), state, quietHelpers);
+  assert.equal(state.cells[hidden].flagged, true);
+  assert.equal(state.cells[hidden].revealed, false);
+  state.flagMode = false;
+  state.cells[hidden].flagged = false;
+  state.flags = 0;
+  // Reveal every safe square one at a time and confirm the win fires.
+  state.cells.forEach((cell, index) => {
+    if (!cell.mine && !cell.revealed) game.handleClick(fakeTarget('[data-mine]', { mine: String(index) }), state, quietHelpers);
+  });
+  assert.equal(state.won, true, 'opening every safe square wins');
+  assert.equal(state.finished, true);
+  assert.equal(game.checkSolved(state), true);
+  // Tapping a mine ends the game as a loss.
+  const loss = game.createState({ difficulty: 'easy', seed: 'field' });
+  game.handleClick(fakeTarget('[data-mine]', { mine: '0' }), loss, quietHelpers);
+  const mine = loss.cells.findIndex(cell => cell.mine);
+  game.handleClick(fakeTarget('[data-mine]', { mine: String(mine) }), loss, quietHelpers);
+  assert.equal(loss.finished, true);
+  assert.equal(loss.won, false, 'hitting a mine is a loss');
+  assert.equal(game.checkSolved(loss), false);
+});

@@ -1418,6 +1418,19 @@ button {
 .collection-item small {
   color:var(--muted);
 }
+.badge-item {
+  align-items:flex-start;
+}
+.badge-item small {
+  text-align:right;
+}
+.badge-item.is-unlocked span {
+  color:var(--green);
+  font-weight:600;
+}
+.badge-item.is-unlocked small {
+  color:var(--coral);
+}
 .toast {
   position:fixed;
   left:50%;
@@ -2241,3 +2254,97 @@ a,
 .memory-card.is-matched { background:var(--green-pale); color:var(--green-dark); cursor:default; }
 .memory-card.is-matched:hover { transform:none; }
 .memory-card.is-hinted { outline:2px solid var(--yellow); outline-offset:-2px; }
+
+/* --- Tic Tac Toe --------------------------------------------------------- */
+.ttt-board {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  width:min(100%,360px);
+}
+.ttt-cell {
+  aspect-ratio:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--white);
+  color:var(--green-dark);
+  font:600 clamp(30px,9vw,52px) var(--sans);
+  cursor:pointer;
+  transition:background .15s ease, transform .1s ease;
+}
+.ttt-cell:hover:not(:disabled) { transform:translateY(-2px); }
+.ttt-cell:disabled { cursor:default; }
+.ttt-cell.mark-x { color:var(--coral); }
+.ttt-cell.mark-o { color:var(--green-dark); }
+.ttt-cell.is-win { background:var(--green-pale); box-shadow:inset 0 0 0 2px var(--green); }
+.ttt-cell.is-hinted { outline:2px solid var(--yellow); outline-offset:-2px; }
+
+/* --- Minesweeper --------------------------------------------------------- */
+.mine-board {
+  display:grid;
+  grid-template-columns:repeat(var(--mine-columns,10),1fr);
+  gap:3px;
+  width:min(100%,460px);
+  touch-action:manipulation;
+}
+.mine-cell {
+  aspect-ratio:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:4px;
+  background:var(--green-pale);
+  color:var(--ink);
+  font:600 clamp(11px,2.6vw,16px) var(--mono);
+  cursor:pointer;
+}
+.mine-cell:not(.is-revealed):hover { background:var(--green); }
+.mine-cell.is-revealed {
+  background:var(--white);
+  cursor:default;
+  border-color:var(--line);
+}
+.mine-cell.is-flagged { background:var(--yellow); color:#5b4a12; }
+.mine-cell.is-mine { background:#f7e6dd; color:var(--coral); }
+.mine-cell.is-hinted { outline:2px solid var(--yellow); outline-offset:-2px; }
+.mine-cell.n1 { color:#1e6fb8; }
+.mine-cell.n2 { color:#2f7d3a; }
+.mine-cell.n3 { color:#c0392b; }
+.mine-cell.n4 { color:#6b3fa0; }
+.mine-cell.n5 { color:#a05a2c; }
+.mine-cell.n6 { color:#1d8a8a; }
+.mine-cell.n7 { color:#333; }
+.mine-cell.n8 { color:#777; }
+:root[data-theme='dark'] .mine-cell.n1 { color:#7fb6e8; }
+:root[data-theme='dark'] .mine-cell.n2 { color:#8fd39a; }
+:root[data-theme='dark'] .mine-cell.n3 { color:#f0a08c; }
+:root[data-theme='dark'] .mine-cell.n4 { color:#c6a6e8; }
+:root[data-theme='dark'] .mine-cell.n5 { color:#e0b088; }
+:root[data-theme='dark'] .mine-cell.n6 { color:#86d6d6; }
+:root[data-theme='dark'] .mine-cell.n7,
+:root[data-theme='dark'] .mine-cell.n8 { color:var(--ink); }
+.mine-tools {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:12px;
+}
+.flag-toggle {
+  padding:8px 14px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:var(--white);
+  color:var(--ink);
+  font-size:13px;
+  cursor:pointer;
+}
+.flag-toggle.is-active { background:var(--yellow); color:#5b4a12; border-color:var(--yellow); }
+.mine-counter {
+  font:13px var(--mono);
+  color:var(--muted);
+}

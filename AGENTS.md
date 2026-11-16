@@ -18,6 +18,7 @@ Playfield is a browser-first PWA hub for short card and puzzle games. It is a st
 - `stats.js`: pure per-game result aggregation (played/won/lost/best time/streak) shown in the profile dialog.
 - `daily.js`: the daily-challenge seed and streak rules (`dailySeed`, `completeDaily`, `currentStreak`).
 - `feedback.js`: Web Audio sound cues and `navigator.vibrate` haptics behind a mute flag (`feedback`, `setMuted`).
+- `achievements.js`: pure badge rules. Each achievement is a `check(context)` predicate over the profile, stats, streak, level, and last win; `evaluate()` returns the ids newly unlocked. The hub records them on `profile.achievements` and the profile dialog lists them.
 - `fonts/`: self-hosted DM Sans, DM Mono, and Playfair Display WOFF2 subsets (`fonts.css` plus `LICENSE.txt`).
 - `games/hints.js`: shared hint price and disabled-state button markup.
 - `games/index.js`: registry for playable modules and metadata for coming-soon games.
@@ -30,11 +31,14 @@ Playfield is a browser-first PWA hub for short card and puzzle games. It is a st
 - `games/crossword-data.js`: the grid letters and clue list. Edit this file to change the crossword; crossing letters stay in sync because the grid is the source of truth.
 - `games/g2048.js`: seeded tile-merge puzzle. `move()` is pure (slide/merge/spawn), input arrives via arrow keys, the on-screen pad, or a board swipe, and `bestMove()` powers the hint.
 - `games/memory.js`: seeded card-flip matching with easy/medium/hard pair counts; a matched pair is one undoable move and mismatches flip back after a short delay.
+- `games/tictactoe.js`: human vs computer on a 3x3 board. The computer uses minimax (`computerMove`) so Impossible never loses; easier levels blunder on purpose. `bestMove()` powers the hint and the human is always X, moving first.
+- `games/minesweeper.js`: first-tap-safe minefield with easy/medium/hard sizes. `reveal` floods open zero-adjacent squares, Flag mode and long-press/right-click toggle flags, and `bestMove()` suggests a safe square for the hint.
 - `styles.css`: shared design system, responsive layouts, game pieces, and motion. The phone
-  breakpoint (`max-width:760px`) turns the sidebar into a bottom navigation bar and pins game
-  actions above it; the `Touch ergonomics` section at the end of the file owns 44px hit targets,
-  safe-area insets, and tap-highlight resets. Keep board cells out of that min-height list so a
-  Sudoku grid still fits a phone.
+  breakpoint (`max-width:760px`) turns the sidebar into a bottom navigation bar; the game aside
+  flows after the board there (it is not sticky, which would cover the last board rows) and only
+  its verbose copy is trimmed. The `Touch ergonomics` section at the end of the file owns 44px hit
+  targets, safe-area insets, and tap-highlight resets. Keep board cells out of that min-height list
+  so a Sudoku grid still fits a phone.
 - `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`:
   PWA identity. iOS ignores SVG for Add to Home Screen, so keep the PNGs in sync with the SVG.
 - `sw.js`: versioned offline shell cache. Add every new module and asset to `APP_FILES` and bump
@@ -111,6 +115,7 @@ node --check stats.js
 node --check economy.js
 node --check daily.js
 node --check feedback.js
+node --check achievements.js
 for file in games/*.js; do node --check "$file"; done
 node --test tests/games.test.js
 ```
@@ -123,6 +128,9 @@ node --test tests/games.test.js
 - Mahjong is a small layered matching tutorial with dead-end detection and reshuffle, not a full 144-tile layout catalogue.
 - The daily challenge currently covers Sudoku only; extend `daily.js` seeds to other games when ready.
 - 2048 and Memory are new, seeded, touch-first games. 2048 win detection marks the board solved at 2048 but keeps playing on request; Memory flips mismatches back after a delay and uses a timer to avoid a stale flip clearing a new pair.
+- Tic Tac Toe's Impossible opponent is perfect minimax, so it can only ever be drawn, not beaten; the easier levels deliberately blunder. The computer's reply is scheduled on a timeout so the human's mark paints first, and the turn is locked immediately so a double tap cannot play twice.
+- Minesweeper places mines only after the first tap (never under the tapped cell or its neighbours), so the opening move is always safe. Long-press (touch) and right-click both toggle a flag; Flag mode is the tap-only path.
+- Achievements (`achievements.js`) are pure predicates evaluated after each win; they are announced by toast and listed in the profile dialog. Add new badges to the `ACHIEVEMENTS` array.
 - Stats and the daily streak live in the local save. Cross-device sync and Supabase accounts are planned but not implemented; keep `store.js` as the single persistence seam.
 - Verify touch layout and pointer drag on a real phone; automated visual browser testing is not currently configured, though Playwright can drive the served app locally.
 - Browser/PWA deployment is not a native Android/iOS/desktop/console package. Cross-device sync and console certification need separate product decisions.

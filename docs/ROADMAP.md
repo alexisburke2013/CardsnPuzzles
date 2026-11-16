@@ -2,10 +2,9 @@
 
 Working checklist for the full re-assessment of Playfield (Cards & Puzzles).
 
-- **Status:** P0 complete; P1 largely landed (economy cap, undo/redo, stats, timers, daily+streaks,
-  Sudoku generator/notes, Solitaire draw-three/auto-complete/double-tap/dead-end, Word Search
-  drag-select, real Crossword grid, Mahjong dead-end shuffle, controller rework). P2 in progress:
-  dark mode, sound/haptics, and two new games (2048, Memory) landed. P3 remains.
+- **Status:** P0 complete; P1 landed; P2 largely landed (dark mode, sound/haptics, achievements,
+  and four new games: 2048, Memory, Tic Tac Toe, Minesweeper). P3 remains (onboarding coachmarks,
+  per-game gaps, Supabase sync).
 - **Target platforms (priority order):** touch-first (phone/tablet) → desktop/PC → controller
 - **Planned backend:** Supabase (email accounts + logins + cross-device sync) — later phase
 - **Out of scope for now:** Vercel, Cloudflare, test/check tooling (source-code work only)
@@ -141,9 +140,13 @@ clean module contract; above-average accessibility intent (aria labels, focus re
   `completeDaily` tracks the current and best streak, shown on the home stats row and the daily
   card. (Other games can reuse `dailySeed`.)
 
-### [ ] 2.5 Add achievements + cosmetic unlocks
+### [x] 2.5 Add achievements + cosmetic unlocks
 - Badges (e.g. "First Flawless Sudoku", "7-day streak", "Win Solitaire without hints");
   unlock themes/tile sets/skins by achievement, not only by level.
+- **Done (badges):** `achievements.js` holds ten pure `check(context)` predicates over the profile,
+  stats, streak, level, and last win; the hub evaluates them after each win, records new ids on
+  `profile.achievements`, announces them by toast, and lists them in the profile dialog.
+- **Remaining:** tie cosmetic unlocks (themes/skins) to badges, not only to level.
 
 ### [x] 2.6 Add sound + haptics
 - Optional WebAudio click/win/match sounds + `navigator.vibrate` on mobile. Respect a mute
@@ -238,8 +241,8 @@ clean module contract; above-average accessibility intent (aria labels, focus re
 
 ## 6. New games (the "coming soon" shelf is a promise)
 
-- [ ] Tic Tac Toe — add a minimax AI so it isn't trivial.
-- [ ] Minesweeper — difficulty levels, first-click-safe, flags, timer.
+- [x] Tic Tac Toe — add a minimax AI so it isn't trivial.
+- [x] Minesweeper — difficulty levels, first-click-safe, flags, timer.
 - [ ] Battleships — AI opponent + two-player hotseat.
 - [x] 2048 — fits the tile aesthetic; easy to build.
 - [ ] Nonogram / Picross — natural sibling to Sudoku; strong daily-puzzle candidate.
@@ -262,6 +265,9 @@ clean module contract; above-average accessibility intent (aria labels, focus re
 | P1 | Controller rework (analog, 2D nav, idle pause) | 4.3 (done) |
 | P2 | Word Search drag-select; real Crossword grid; Mahjong shuffle/undo | 2.8 (done) |
 | P2 | Dark mode, sound/haptics, daily challenge + streaks | 1.5, 2.4 (done), 2.6 |
+| P2 | New games: 2048, Memory, Tic Tac Toe (minimax), Minesweeper | 6 (done) |
+| P2 | Achievements + badges | 2.5 (badges done) |
+| P3 | Onboarding coachmarks; cosmetic unlocks tied to badges | 2.5, 2.7 |
 | P3 | Supabase auth + sync behind the seam | 3.2, 3.7, 5 |
 
 ---
