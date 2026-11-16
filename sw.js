@@ -1,6 +1,12 @@
-const CACHE_NAME = 'playfield-shell-v3';
+const CACHE_NAME = 'playfield-shell-v4';
 const APP_FILES = [
   './', './index.html', './styles.css', './app.js', './wallet.js', './manifest.webmanifest', './icon.svg',
+  './fonts/fonts.css',
+  './fonts/dm-sans-400-latin.woff2', './fonts/dm-sans-400-latin-ext.woff2',
+  './fonts/dm-mono-400-latin.woff2', './fonts/dm-mono-400-latin-ext.woff2',
+  './fonts/dm-mono-500-latin.woff2', './fonts/dm-mono-500-latin-ext.woff2',
+  './fonts/playfair-display-500-latin.woff2', './fonts/playfair-display-500-latin-ext.woff2',
+  './fonts/playfair-display-500-italic-latin.woff2', './fonts/playfair-display-500-italic-latin-ext.woff2',
   './games/hints.js',
   './games/index.js', './games/solitaire.js', './games/sudoku.js', './games/mahjong.js',
   './games/wordsearch.js', './games/crossword.js'

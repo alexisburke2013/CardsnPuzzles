@@ -1,0 +1,19 @@
+Self-hosted web fonts
+=====================
+
+This directory contains self-hosted webfont files used by Playfield.
+
+Fonts and licenses (all SIL Open Font License 1.1):
+
+- DM Sans .......... Copyright 2014 The DM Sans Project Authors
+                     https://fonts.google.com/specimen/DM+Sans
+- DM Mono .......... Copyright 2020 The DM Mono Project Authors
+                     https://fonts.google.com/specimen/DM+Mono
+- Playfair Display . Copyright 2017 The Playfair Display Project Authors
+                     https://fonts.google.com/specimen/Playfair+Display
+
+The SIL Open Font License 1.1 permits use, modification, and redistribution
+of these fonts, including bundling with this application. The full license
+text is available at: https://scripts.sil.org/OFL
+
+Files here are the "latin" and "latin-ext" subsets in WOFF2 format.
