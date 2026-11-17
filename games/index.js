@@ -12,13 +12,12 @@ import g2048 from './g2048.js';
 import memory from './memory.js';
 import tictactoe from './tictactoe.js';
 import minesweeper from './minesweeper.js';
+import battleship from './battleship.js';
 
 export const gameModules = Object.fromEntries(
-  [solitaire, sudoku, mahjong, wordsearch, crossword, g2048, memory, tictactoe, minesweeper].map(game => [game.metadata.id, game])
+  [solitaire, sudoku, mahjong, wordsearch, crossword, g2048, memory, tictactoe, minesweeper, battleship].map(game => [game.metadata.id, game])
 );
 
-export const comingSoonGames = [
-  { id: 'battleship', title: 'Battleships', kind: 'puzzles', subtitle: 'Coming to the game shelf', art: 'cross', coming: true }
-];
+export const comingSoonGames = [];
 
 export default gameModules;

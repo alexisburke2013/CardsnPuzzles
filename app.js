@@ -45,7 +45,8 @@ const gameSchema = {
   g2048: { version: 1, validate: state => Array.isArray(state.cells) && state.cells.length === 16, restore: state => ({ ...state, swipe: null }) },
   memory: { version: 1, validate: state => Array.isArray(state.deck) && state.deck.length % 2 === 0, restore: state => ({ ...state, flipped: [], lock: false, hint: null }) },
   tictactoe: { version: 1, validate: state => Array.isArray(state.board) && state.board.length === 9, restore: state => ({ ...state, hint: null }) },
-  minesweeper: { version: 1, validate: state => Array.isArray(state.cells) && state.cells.every(cell => typeof cell === 'object'), restore: state => ({ ...state, press: null, suppressClick: false, hint: null }) }
+  minesweeper: { version: 1, validate: state => Array.isArray(state.cells) && state.cells.every(cell => typeof cell === 'object'), restore: state => ({ ...state, press: null, suppressClick: false, hint: null }) },
+  battleship: { version: 1, validate: state => state.boards?.p1 && state.boards?.p2 && Array.isArray(state.boards.p1.ships), restore: state => ({ ...state, handoff: false, lastShot: null, hint: null }) }
 };
 
 let data = loadData();
@@ -411,7 +412,12 @@ function dispatchGameEvent(handler, event) {
   const result = handler === 'handleClick' || handler === 'handleInput'
     ? game[handler](event.target, state, gameHelpers())
     : game[handler](event, state, gameHelpers());
-  if (result?.solved || game.checkSolved?.(state) || (state.finished && !state.rewarded)) grantReward(id);
+  // A game with `checkSolved` decides for itself whether the round was won; the
+  // `finished` fallback is only for games that set it on a win (Solitaire,
+  // Mahjong, Word Search, Crossword). Without this, a loss that sets `finished`
+  // would award credits and XP.
+  const solvedNow = Boolean(result?.solved) || (typeof game.checkSolved === 'function' ? game.checkSolved(state) : state.finished && !state.rewarded);
+  if (solvedNow) grantReward(id);
   if (result !== true && !result?.changed) return;
   // Games that manipulate the DOM directly during a drag (Solitaire) return
   // nothing from pointermove and are skipped here; those that need a repaint
@@ -530,6 +536,26 @@ document.addEventListener('change', event => {
     renderActiveGame();
     resetGameHistory();
     showToast(`${mineSelect.value[0].toUpperCase()}${mineSelect.value.slice(1)} Minesweeper ready.`);
+    return;
+  }
+  const bsMode = event.target.closest('[data-bs-mode]');
+  if (bsMode && activeGame?.id === 'battleship') {
+    const hasProgress = activeGame.state.moves > 0;
+    if (hasProgress && !confirm('Changing the mode starts a new battle. Continue?')) { renderActiveGame(); return; }
+    activeGame.state = newGameState('battleship', { mode: bsMode.value, difficulty: activeGame.state.difficulty });
+    renderActiveGame();
+    resetGameHistory();
+    showToast(`${bsMode.value === 'hotseat' ? 'Two players' : 'Computer'} battle ready.`);
+    return;
+  }
+  const bsDifficulty = event.target.closest('[data-bs-difficulty]');
+  if (bsDifficulty && activeGame?.id === 'battleship') {
+    const hasProgress = activeGame.state.moves > 0;
+    if (hasProgress && !confirm('Changing the opponent starts a new battle. Continue?')) { renderActiveGame(); return; }
+    activeGame.state = newGameState('battleship', { mode: activeGame.state.mode, difficulty: bsDifficulty.value });
+    renderActiveGame();
+    resetGameHistory();
+    showToast(`${bsDifficulty.value[0].toUpperCase()}${bsDifficulty.value.slice(1)} opponent ready.`);
   }
 });
 
@@ -560,6 +586,7 @@ document.querySelector('#newGameButton').addEventListener('click', () => {
     : id === 'memory' ? { difficulty: activeGame.state.difficulty }
     : id === 'tictactoe' ? { difficulty: activeGame.state.difficulty }
     : id === 'minesweeper' ? { difficulty: activeGame.state.difficulty }
+    : id === 'battleship' ? { mode: activeGame.state.mode, difficulty: activeGame.state.difficulty }
     : {};
   if (id && confirm('Start a fresh game? Your current board will be replaced.')) openGame(id, true, options);
 });
