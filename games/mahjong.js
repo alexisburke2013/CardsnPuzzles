@@ -44,7 +44,25 @@ function makeLayout() {
 }
 
 export function createState() {
-  return { tiles: makeLayout(), selected: null, hinted: [], finished: false };
+  return { tiles: makeLayout(), selected: null, hinted: [], shuffles: 0, finished: false };
+}
+
+/* A pair is playable when both tiles are selectable and share a face. */
+export function hasMoves(state) {
+  const available = state.tiles.filter(tile => canSelect(tile, state.tiles));
+  return available.some((tile, index) => available.slice(index + 1).some(other => other.face === tile.face));
+}
+
+/* Re-deal the faces of the remaining tiles. Used when the board deadlocks so a
+   player is never stuck with no legal pair. Faces stay in pairs. */
+export function shuffleRemaining(state) {
+  const remaining = state.tiles.filter(tile => !tile.removed);
+  const faces = shuffle(remaining.map(tile => tile.face));
+  remaining.forEach((tile, index) => { tile.face = faces[index]; });
+  state.selected = null;
+  state.hinted = [];
+  state.shuffles += 1;
+  return true;
 }
 
 function canSelect(tile, tiles) {
@@ -57,6 +75,7 @@ function canSelect(tile, tiles) {
 
 export function render(state, { credits = 0 } = {}) {
   const remaining = state.tiles.filter(tile => !tile.removed).length;
+  const stuck = !state.finished && !hasMoves(state);
   const tiles = state.tiles.map(tile => {
     const selected = state.selected === tile.id;
     const hinted = state.hinted.includes(tile.id);
@@ -64,13 +83,21 @@ export function render(state, { credits = 0 } = {}) {
     const topOffset = tile.layer * -7;
     return `<button class="mahjong-tile ${selected ? 'is-selected' : ''} ${hinted ? 'is-hinted' : ''} ${disabled ? 'is-blocked' : ''}" style="grid-column:${tile.column + 1};grid-row:${tile.row + 1};z-index:${tile.layer * 10 + 1};--tile-lift:${topOffset}px" data-tile="${tile.id}" aria-label="${tile.face}${disabled ? ', blocked' : ''}" ${disabled ? 'disabled' : ''}>${tile.face}</button>`;
   }).join('');
+  const shuffleButton = stuck
+    ? `<button class="game-action is-urgent" data-shuffle-tiles>No pairs left — shuffle the garden</button>`
+    : '';
   return {
     board: `<div class="mahjong-board" role="group" aria-label="Layered Mahjong matching board">${tiles}</div>`,
-    aside: `<p class="aside-label">TILE GARDEN · ${remaining} LEFT</p><h2 class="aside-title">Clear the canopy</h2><p class="aside-copy">A tile opens when at least one side is clear. Clear the two canopy pairs to uncover the garden below.</p>${hintButton('Show an open pair', { credits, finished: state.finished })}<div class="reward-line"><span>Clear the garden</span><strong>+25 credits<br>+50 XP</strong></div>`
+    aside: `<p class="aside-label">TILE GARDEN · ${remaining} LEFT${state.shuffles ? ` · ${state.shuffles} SHUFFLE${state.shuffles > 1 ? 'S' : ''}` : ''}</p><h2 class="aside-title">Clear the canopy</h2><p class="aside-copy">A tile opens when at least one side is clear. Clear the two canopy pairs to uncover the garden below. If no pair remains, shuffle to keep going.</p>${shuffleButton}${hintButton('Show an open pair', { credits, finished: state.finished })}<div class="reward-line"><span>Clear the garden</span><strong>+25 credits<br>+50 XP</strong></div>`
   };
 }
 
 export function handleClick(target, state, helpers) {
+  if (target.closest('[data-shuffle-tiles]')) {
+    shuffleRemaining(state);
+    helpers.toast('Garden reshuffled. Keep matching.');
+    return { changed: true, undoable: true };
+  }
   if (target.closest('[data-game-hint]')) {
     const available = state.tiles.filter(tile => canSelect(tile, state.tiles));
     const pair = available.find((tile, index) => available.slice(index + 1).some(other =>
@@ -107,6 +134,7 @@ export function handleClick(target, state, helpers) {
         state.finished = true;
         helpers.complete('mahjong');
       }
+      return { changed: true, undoable: true };
     } else {
       state.selected = tile.id;
       helpers.toast('Not a pair. The first tile stays highlighted.');
@@ -115,4 +143,4 @@ export function handleClick(target, state, helpers) {
   return true;
 }
 
-export default { metadata, createState, render, handleClick };
+export default { metadata, createState, render, handleClick, hasMoves, shuffleRemaining };

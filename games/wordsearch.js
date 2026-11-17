@@ -89,13 +89,45 @@ export function isValidState(state) {
 export function render(state, { credits = 0 } = {}) {
   const foundCells = new Set(state.found.flatMap(index => state.placements[index]));
   const hintedCells = new Set(state.hintedWord === null ? [] : state.placements[state.hintedWord]);
-  const grid = state.grid.map((letter, index) => `<button class="word-cell ${state.first === index ? 'is-first' : ''} ${foundCells.has(index) ? 'is-found' : ''} ${hintedCells.has(index) ? 'is-hinted' : ''}" data-letter="${index}" aria-label="${letter}, row ${Math.floor(index / state.gridSize) + 1}, column ${index % state.gridSize + 1}">${letter}</button>`).join('');
+  const preview = new Set(state.preview ?? []);
+  const grid = state.grid.map((letter, index) => `<button class="word-cell ${state.first === index ? 'is-first' : ''} ${preview.has(index) ? 'is-preview' : ''} ${foundCells.has(index) ? 'is-found' : ''} ${hintedCells.has(index) ? 'is-hinted' : ''}" data-letter="${index}" aria-label="${letter}, row ${Math.floor(index / state.gridSize) + 1}, column ${index % state.gridSize + 1}">${letter}</button>`).join('');
   const words = state.words.map((word, index) => `<span class="${state.found.includes(index) ? 'is-found' : ''} ${state.hintedWord === index ? 'is-hinted' : ''}">${word}</span>`).join('');
   const difficulty = `<label class="difficulty-control"><span>Difficulty</span><select data-word-difficulty aria-label="Word Search difficulty">${Object.keys(DIFFICULTIES).map(level => `<option value="${level}" ${state.difficulty === level ? 'selected' : ''}>${level[0].toUpperCase()}${level.slice(1)}</option>`).join('')}</select></label>`;
   return {
     board: `<div class="wordsearch-layout"><div class="wordsearch-board" style="--word-grid-size:${state.gridSize}" role="group" aria-label="Word search grid">${grid}</div><div class="word-list">${words}</div></div>`,
-    aside: `<p class="aside-label">WORD SEARCH · ${state.difficulty.toUpperCase()}</p><h2 class="aside-title">Letters in motion</h2><p class="aside-copy">Tap the first and last letters of a word. Check across, down, and diagonally. Found words stay marked while you hunt.</p>${difficulty}${hintButton('Highlight a hidden word', { credits, finished: state.finished })}<div class="reward-line"><span>Find every word</span><strong>+25 credits<br>+50 XP</strong></div>`
+    aside: `<p class="aside-label">WORD SEARCH · ${state.difficulty.toUpperCase()}</p><h2 class="aside-title">Letters in motion</h2><p class="aside-copy">Drag across a word, or tap its first and last letters. Check across, down, and diagonally. Found words stay marked while you hunt.</p>${difficulty}${hintButton('Highlight a hidden word', { credits, finished: state.finished })}<div class="reward-line"><span>Find every word</span><strong>+25 credits<br>+50 XP</strong></div>`
   };
+}
+
+/* Straight-line cell indices between two endpoints, or null when they are not
+   aligned on a row, column, or diagonal. */
+export function lineBetween(gridSize, start, end) {
+  const startRow = Math.floor(start / gridSize);
+  const startColumn = start % gridSize;
+  const endRow = Math.floor(end / gridSize);
+  const endColumn = end % gridSize;
+  const rowStep = Math.sign(endRow - startRow);
+  const columnStep = Math.sign(endColumn - startColumn);
+  const length = Math.max(Math.abs(endRow - startRow), Math.abs(endColumn - startColumn));
+  if (length === 0) return null;
+  if (Math.abs(endRow - startRow) !== Math.abs(endColumn - startColumn) && startRow !== endRow && startColumn !== endColumn) return null;
+  return Array.from({ length: length + 1 }, (_, offset) => (startRow + rowStep * offset) * gridSize + (startColumn + columnStep * offset));
+}
+
+function resolve(state, start, end, helpers) {
+  const path = lineBetween(state.gridSize, start, end);
+  const placementIndex = path && state.placements.findIndex((placement, wordIndex) => !state.found.includes(wordIndex) &&
+    ((placement[0] === start && placement.at(-1) === end) || (placement[0] === end && placement.at(-1) === start)));
+  if (placementIndex < 0) {
+    helpers.toast('Those endpoints do not spell a hidden word.');
+    return false;
+  }
+  state.found.push(placementIndex);
+  if (state.found.length === state.words.length) {
+    state.finished = true;
+    helpers.complete('wordsearch');
+  }
+  return true;
 }
 
 export function handleClick(target, state, helpers) {
@@ -106,6 +138,7 @@ export function handleClick(target, state, helpers) {
     if (!helpers.spendCredits(HINT_COST)) return true;
     state.hintedWord = wordIndex;
     state.first = state.placements[wordIndex][0];
+    state.preview = [];
     return true;
   }
   const cell = target.closest('[data-letter]');
@@ -113,22 +146,56 @@ export function handleClick(target, state, helpers) {
   const index = Number(cell.dataset.letter);
   if (state.first === null) {
     state.first = index;
+    state.preview = [];
     return true;
   }
   const start = state.first;
-  const placementIndex = state.placements.findIndex((placement, wordIndex) => !state.found.includes(wordIndex) &&
-    ((placement[0] === start && placement.at(-1) === index) || (placement[0] === index && placement.at(-1) === start)));
   state.first = null;
-  if (placementIndex < 0) {
-    helpers.toast('Those endpoints do not spell a hidden word.');
-    return true;
+  state.preview = [];
+  const found = resolve(state, start, index, helpers);
+  return { changed: true, undoable: Boolean(found) };
+}
+
+export function handlePointerDown(event, state) {
+  const cell = event.target.closest?.('[data-letter]');
+  if (!cell || event.button !== 0) return;
+  state.drag = { pointerId: event.pointerId, start: Number(cell.dataset.letter), moved: false };
+}
+
+export function handlePointerMove(event, state) {
+  const drag = state.drag;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  const cell = document.elementFromPoint?.(event.clientX, event.clientY)?.closest('[data-letter]');
+  if (!cell) return;
+  const end = Number(cell.dataset.letter);
+  if (end === drag.start) return;
+  if (!drag.moved) { drag.moved = true; state.first = drag.start; }
+  state.preview = lineBetween(state.gridSize, drag.start, end) ?? [];
+  return { changed: true, undoable: false };
+}
+
+export function handlePointerUp(event, state, helpers) {
+  const drag = state.drag;
+  if (!drag || drag.pointerId !== event.pointerId) return false;
+  state.drag = null;
+  if (!drag.moved) return false;
+  const end = Number(document.elementFromPoint?.(event.clientX, event.clientY)?.closest?.('[data-letter]')?.dataset.letter);
+  const start = drag.start;
+  state.first = null;
+  state.preview = [];
+  if (Number.isInteger(end) && end !== start) {
+    const found = resolve(state, start, end, helpers);
+    return { changed: true, undoable: Boolean(found) };
   }
-  state.found.push(placementIndex);
-  if (state.found.length === state.words.length) {
-    state.finished = true;
-    helpers.complete('wordsearch');
-  }
+  return { changed: true, undoable: false };
+}
+
+export function handlePointerCancel(event, state) {
+  if (!state.drag || state.drag.pointerId !== event.pointerId) return false;
+  state.drag = null;
+  state.first = null;
+  state.preview = [];
   return true;
 }
 
-export default { metadata, createState, isValidState, render, handleClick };
+export default { metadata, createState, isValidState, render, handleClick, handlePointerDown, handlePointerMove, handlePointerUp, handlePointerCancel, lineBetween };
