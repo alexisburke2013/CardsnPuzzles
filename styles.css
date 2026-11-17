@@ -2348,3 +2348,114 @@ a,
   font:13px var(--mono);
   color:var(--muted);
 }
+
+/* --- Battleships --------------------------------------------------------- */
+.bs-field {
+  display:flex;
+  flex-wrap:wrap;
+  gap:22px;
+  align-items:flex-start;
+}
+.bs-side { display:flex; flex-direction:column; gap:8px; }
+.bs-side-label {
+  margin:0;
+  color:var(--muted);
+  font:11px var(--mono);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.bs-board {
+  display:grid;
+  grid-template-columns:repeat(var(--bs-columns,8),1fr);
+  gap:3px;
+  width:min(100%,300px);
+  touch-action:manipulation;
+}
+.bs-cell {
+  aspect-ratio:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:4px;
+  background:var(--blue);
+  color:var(--ink);
+  font:600 clamp(11px,2.6vw,15px) var(--mono);
+  cursor:pointer;
+}
+.bs-board.is-own .bs-cell { background:var(--green-pale); cursor:default; }
+.bs-board.is-own .bs-cell[data-bs-place] { cursor:pointer; }
+.bs-board.is-own .bs-cell[data-bs-place]:hover { background:var(--green); }
+.bs-cell.is-ship { background:var(--green-dark); }
+.bs-cell.is-sunk { background:var(--coral); color:#fff; }
+.bs-board.is-enemy .bs-cell:not(:disabled):hover { background:var(--green); }
+.bs-cell.is-miss { background:var(--paper); color:var(--muted); cursor:default; }
+.bs-cell.is-hit { background:var(--yellow); color:#5b4a12; cursor:default; }
+.bs-cell.is-hinted { outline:2px solid var(--yellow); outline-offset:-2px; }
+.bs-cell:disabled { cursor:default; }
+.bs-tools {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:12px;
+}
+.bs-tool {
+  padding:9px 13px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:var(--white);
+  color:var(--ink);
+  font-size:13px;
+  cursor:pointer;
+}
+.bs-tool:hover:not(:disabled) { border-color:var(--green); }
+.bs-tool:disabled { opacity:.45; cursor:default; }
+.bs-tool.is-primary { background:var(--green); color:var(--white); border-color:var(--green); }
+.bs-selects { margin-top:4px; }
+.bs-fleet {
+  margin:12px 0 0;
+  padding:0;
+  list-style:none;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.bs-fleet li {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:6px 10px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  color:var(--muted);
+  font-size:13px;
+}
+.bs-fleet li.is-placed { color:var(--muted); text-decoration:line-through; opacity:.6; }
+.bs-fleet li.is-next { border-color:var(--green); color:var(--ink); font-weight:600; }
+.bs-fleet li small { font:12px var(--mono); }
+.bs-log {
+  margin:10px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+.bs-handoff {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:10px;
+  width:min(100%,460px);
+  padding:28px 24px;
+  border:1px dashed var(--line);
+  border-radius:12px;
+  background:var(--white);
+}
+.bs-handoff-eyebrow {
+  margin:0;
+  color:var(--muted);
+  font:11px var(--mono);
+  letter-spacing:.1em;
+}
+.bs-handoff h2 { margin:0; font:500 24px var(--serif); }
+.bs-handoff p { margin:0; color:var(--muted); }
+

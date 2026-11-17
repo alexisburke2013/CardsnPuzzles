@@ -1,4 +1,4 @@
-const CACHE_NAME = 'playfield-shell-v7';
+const CACHE_NAME = 'playfield-shell-v8';
 const APP_FILES = [
   './', './index.html', './styles.css', './app.js', './wallet.js', './store.js', './rng.js',
   './history.js', './stats.js', './economy.js', './daily.js', './feedback.js', './achievements.js',
@@ -12,7 +12,8 @@ const APP_FILES = [
   './games/hints.js',
   './games/index.js', './games/solitaire.js', './games/sudoku.js', './games/sudoku-generator.js',
   './games/mahjong.js', './games/wordsearch.js', './games/crossword.js', './games/crossword-data.js',
-  './games/g2048.js', './games/memory.js', './games/tictactoe.js', './games/minesweeper.js'
+  './games/g2048.js', './games/memory.js', './games/tictactoe.js', './games/minesweeper.js',
+  './games/battleship.js'
 ];
 
 self.addEventListener('install', event => {

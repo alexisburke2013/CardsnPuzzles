@@ -243,7 +243,7 @@ clean module contract; above-average accessibility intent (aria labels, focus re
 
 - [x] Tic Tac Toe — add a minimax AI so it isn't trivial.
 - [x] Minesweeper — difficulty levels, first-click-safe, flags, timer.
-- [ ] Battleships — AI opponent + two-player hotseat.
+- [x] Battleships — AI opponent + two-player hotseat.
 - [x] 2048 — fits the tile aesthetic; easy to build.
 - [ ] Nonogram / Picross — natural sibling to Sudoku; strong daily-puzzle candidate.
 - [x] Memory / Concentration — card-flip matching.

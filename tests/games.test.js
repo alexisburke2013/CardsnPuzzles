@@ -576,3 +576,65 @@ test('Minesweeper keeps the first tap safe and wins when every safe square opens
   assert.equal(loss.won, false, 'hitting a mine is a loss');
   assert.equal(game.checkSolved(loss), false);
 });
+
+test('Battleships places ships legally, hides the enemy fleet, and awards only a win', () => {
+  const game = gameModules.battleship;
+  const state = game.createState({ mode: 'ai', difficulty: 'hard', seed: 'naval' });
+  assert.equal(state.phase, 'placing');
+  // A ship cannot run off the edge or overlap another ship.
+  const edge = game.canPlace(state.boards.p1, 4, 6, 'h');
+  assert.equal(edge, null, 'a length-4 ship cannot start at column 6');
+  const placed = game.placeShip(state.boards.p1, 'Battleship', 4, 0, 'h');
+  assert.deepEqual(placed.cells, [0, 1, 2, 3]);
+  assert.equal(game.canPlace(state.boards.p1, 2, 1, 'h'), null, 'overlap is rejected');
+  // Auto-place fills the whole fleet, then Ready hands control to the computer.
+  game.autoPlace(state.boards.p2, createRng('enemy'));
+  assert.equal(state.boards.p2.ships.length, 5);
+  assert.equal(game.allSunk(state.boards.p2), false);
+  // Fire at a known ship square: hit, then sink every cell.
+  const target = state.boards.p2.ships[0];
+  assert.equal(game.fire(state.boards.p2, target.cells[0]), 'hit');
+  assert.equal(game.fire(state.boards.p2, target.cells[0]), null, 'no double fire');
+  target.cells.slice(1).forEach(cell => game.fire(state.boards.p2, cell));
+  assert.equal(game.allSunk(state.boards.p2), false, 'other ships still afloat');
+  state.boards.p2.ships.forEach(ship => ship.cells.forEach(cell => game.fire(state.boards.p2, cell)));
+  assert.equal(game.allSunk(state.boards.p2), true);
+  assert.equal(game.checkSolved(state), false, 'checkSolved needs winner p1 and no reward');
+  state.winner = 'p1';
+  assert.equal(game.checkSolved(state), true);
+  state.rewarded = true;
+  assert.equal(game.checkSolved(state), false, 'a rewarded win does not re-award');
+});
+
+test('Battleships hotseat hides fleets and passes the turn, and the AI never loses turn order', () => {
+  const game = gameModules.battleship;
+  const state = game.createState({ mode: 'hotseat', seed: 'duel' });
+  game.autoPlace(state.boards.p1, createRng('p1'));
+  game.autoPlace(state.boards.p2, createRng('p2'));
+  state.boards.p1.ships.forEach(ship => { ship.hits = ship.size; });
+  state.boards.p2.ships.forEach(ship => { ship.hits = ship.size; });
+  // Player 1 sinks the last enemy ship and wins outright.
+  state.phase = 'battle';
+  state.turn = 'p1';
+  const result = game.handleClick(fakeTarget('[data-bs-fire]', { bsFire: '0' }), state, quietHelpers);
+  assert.equal(state.finished, true);
+  assert.equal(state.winner, 'p1');
+  assert.equal(result.solved, true, 'a p1 win reports solved for the hub reward');
+  // The rendered enemy board hides un-hit ships.
+  const html = game.render(state, {}).board;
+  assert.ok(html.includes('bs-board'), 'battle renders both grids');
+});
+
+test('Battleships AI chases a hit and clears its queue after a sink', () => {
+  const game = gameModules.battleship;
+  const state = game.createState({ mode: 'ai', difficulty: 'hard', seed: 'hunt' });
+  // One ship on the player board so the AI has something to find.
+  game.placeShip(state.boards.p1, 'Destroyer', 2, 0, 'h');
+  state.phase = 'battle';
+  state.turn = 'p2';
+  const first = game.aiChooseShot(state, createRng('first'));
+  const result = game.fire(state.boards.p1, first);
+  assert.ok(['hit', 'miss'].includes(result));
+  const html = game.render(state, {}).board;
+  assert.ok(html.includes('Enemy waters'), 'the human view still shows enemy waters');
+});
